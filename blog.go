@@ -32,10 +32,16 @@ type Errors []error
 func (err Errors) Error() string {
 	messages := []string{}
 	for _, e := range err {
-		messages = append(messages, fmt.Sprintf("%q", e.Error()))
+		messages = append(messages, e.Error())
 	}
 
-	return "[" + strings.Join(messages, ", ") + "]"
+	data, _ := json.MarshalIndent(messages, "", "  ")
+
+	return string(data)
+}
+
+func (err Errors) MarshalJSON() ([]byte, error) {
+	return []byte(err.Error()), nil
 }
 
 func (err Errors) Return() error {
@@ -47,12 +53,12 @@ func (err Errors) Return() error {
 }
 
 type ValidationError struct {
-	fields map[string][]error
+	fields map[string]Errors
 }
 
 func NewValidationError() *ValidationError {
 	return &ValidationError{
-		fields: map[string][]error{},
+		fields: map[string]Errors{},
 	}
 }
 
