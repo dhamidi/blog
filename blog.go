@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -132,7 +133,13 @@ type PublishPostCommand struct {
 	Content string
 }
 
-type Application struct{}
+type Application struct {
+	allPosts *AllPostsView
+}
+
+func (app *Application) HandleEvent(event Event) error {
+	return app.allPosts.HandleEvent(event)
+}
 
 func (app *Application) HandleCommand(command Command) (Events, error) {
 	switch cmd := command.(type) {
@@ -141,6 +148,23 @@ func (app *Application) HandleCommand(command Command) (Events, error) {
 	}
 
 	return nil, nil
+}
+
+func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case "GET":
+		app.allPosts.ServeHTTP(w, req)
+	case "POST":
+		cmd := &PublishPostCommand{
+			Title:   req.FormValue("title"),
+			Content: req.FormValue("content"),
+		}
+		if err := RunCommand(cmd, app, app); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			w.WriteHeader(http.StatusCreated)
+		}
+	}
 }
 
 func (app *Application) PublishPost(cmd *PublishPostCommand) (Events, error) {
@@ -191,6 +215,15 @@ type AllPostsView struct {
 	Posts AllPosts
 }
 
+func (view *AllPostsView) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	data, err := json.MarshalIndent(view, "", "  ")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	fmt.Fprintf(w, "%s", data)
+}
+
 func (view *AllPostsView) HandleEvent(event Event) error {
 	switch evt := event.(type) {
 	case *PostPublishedEvent:
@@ -210,5 +243,11 @@ func (view *AllPostsView) AddPost(post *AllPostsPost) {
 }
 
 func main() {
+	app := &Application{
+		allPosts: &AllPostsView{},
+	}
 
+	http.Handle("/", app)
+
+	log.Fatal(http.ListenAndServe(":8000", app))
 }
