@@ -12,6 +12,7 @@ import (
 	"errors"
 
 	"github.com/nu7hatch/gouuid"
+	"github.com/russross/blackfriday"
 )
 
 type Event interface{}
@@ -140,11 +141,21 @@ type PublishPostCommand struct {
 }
 
 type Application struct {
-	allPosts *AllPostsView
+	allPosts   *AllPostsView
+	postDetail *PostDetailView
 }
 
 func (app *Application) HandleEvent(event Event) error {
-	return app.allPosts.HandleEvent(event)
+	errs := Errors{}
+	if err := app.allPosts.HandleEvent(event); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := app.postDetail.HandleEvent(event); err != nil {
+		errs = append(errs, err)
+	}
+
+	return errs.Return()
 }
 
 func (app *Application) HandleCommand(command Command) (Events, error) {
@@ -158,8 +169,6 @@ func (app *Application) HandleCommand(command Command) (Events, error) {
 
 func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
-	case "GET":
-		app.allPosts.ServeHTTP(w, req)
 	case "POST":
 		cmd := &PublishPostCommand{
 			Title:   req.FormValue("title"),
@@ -170,6 +179,8 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		} else {
 			w.WriteHeader(http.StatusCreated)
 		}
+	default:
+		http.Error(w, fmt.Sprintf("%s not supported.", req.Method), http.StatusMethodNotAllowed)
 	}
 }
 
@@ -248,12 +259,96 @@ func (view *AllPostsView) AddPost(post *AllPostsPost) {
 	sort.Sort(view.Posts)
 }
 
-func main() {
-	app := &Application{
-		allPosts: &AllPostsView{},
+type PostDetailPost struct {
+	Id        string
+	Title     string
+	Body      string
+	BodyHTML  string
+	Published string
+}
+
+type PostDetailView struct {
+	Posts map[string]*PostDetailPost
+}
+
+func (view *PostDetailView) HandleEvent(event Event) error {
+	switch evt := event.(type) {
+	case *PostPublishedEvent:
+
+		view.AddPost(&PostDetailPost{
+			Id:        evt.PostId,
+			Title:     evt.Title,
+			Body:      evt.Content,
+			BodyHTML:  string(blackfriday.MarkdownCommon([]byte(evt.Content))),
+			Published: evt.PublishedAt.Format("02 Jan 2006"),
+		})
 	}
 
-	http.Handle("/", app)
+	return nil
+}
 
-	log.Fatal(http.ListenAndServe(":8000", app))
+func (view *PostDetailView) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case "GET":
+		view.showPost(w, req)
+	default:
+		http.Error(w, fmt.Sprintf("%s not supported.", req.Method), http.StatusMethodNotAllowed)
+	}
+}
+
+func (view *PostDetailView) showPost(w http.ResponseWriter, req *http.Request) {
+	postId := req.URL.Path[len("/posts/"):]
+	post, err := view.PostById(postId)
+	if err == ErrNotFound {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(post); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (view *PostDetailView) PostById(id string) (*PostDetailPost, error) {
+	post, found := view.Posts[id]
+	if !found {
+		return nil, ErrNotFound
+	}
+
+	return post, nil
+}
+
+func (view *PostDetailView) AddPost(post *PostDetailPost) {
+	if view.Posts == nil {
+		view.Posts = map[string]*PostDetailPost{}
+	}
+
+	view.Posts[post.Id] = post
+}
+
+func main() {
+	app := &Application{
+		allPosts:   &AllPostsView{},
+		postDetail: &PostDetailView{},
+	}
+
+	http.Handle("/posts/", app.postDetail)
+	http.HandleFunc("/posts", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case "GET":
+			app.allPosts.ServeHTTP(w, req)
+		default:
+			app.ServeHTTP(w, req)
+		}
+	})
+
+	log.Fatal(http.ListenAndServe(":8000", nil))
 }
