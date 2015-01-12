@@ -16,7 +16,9 @@ import (
 	"github.com/russross/blackfriday"
 )
 
-type Event interface{}
+type Event interface {
+	EventStreamId() string
+}
 type Command interface{}
 
 type Events []Event
@@ -127,6 +129,8 @@ type PostPublishedEvent struct {
 	PublishedAt time.Time
 }
 
+func (p *PostPublishedEvent) EventStreamId() string { return p.PostId }
+
 func Id() string {
 	id, err := uuid.NewV4()
 	if err != nil {
@@ -169,23 +173,57 @@ type PublishPostCommand struct {
 }
 
 type Application struct {
-	allPosts   *AllPostsView
-	postDetail *PostDetailView
-	posts      *Posts
+	allPosts      *AllPostsView
+	postDetail    *PostDetailView
+	posts         *Posts
+	eventStore    *EventsInFileSystem
+	eventHandlers []EventHandler
+}
+
+func (app *Application) Init() error {
+	app.allPosts = &AllPostsView{}
+	app.postDetail = &PostDetailView{}
+	app.posts = NewPosts()
+	eventStore, err := NewEventsInFileSystem("_events")
+	if err != nil {
+		return fmt.Errorf("Application.Init: %s", err)
+	}
+	eventStore.Register(&PostPublishedEvent{})
+	app.eventStore = eventStore
+
+	app.eventHandlers = []EventHandler{
+		app.allPosts,
+		app.postDetail,
+		app.posts,
+	}
+
+	return app.restoreState()
+}
+
+func (app *Application) restoreState() error {
+	if err := app.eventStore.LoadHistory(); err != nil {
+		return fmt.Errorf("Application.Init: %s", err)
+	}
+
+	state, err := app.eventStore.AllEvents()
+	if err != nil {
+		return fmt.Errorf("Application.Init: %s", err)
+	}
+	for _, event := range state {
+		if err := app.HandleEvent(event); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (app *Application) HandleEvent(event Event) error {
 	errs := Errors{}
-	if err := app.allPosts.HandleEvent(event); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := app.postDetail.HandleEvent(event); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := app.posts.HandleEvent(event); err != nil {
-		errs = append(errs, err)
+	for _, handler := range app.eventHandlers {
+		if err := handler.HandleEvent(event); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	return errs.Return()
@@ -303,10 +341,10 @@ func (view *PostDetailView) AddPost(post *PostDetailPost) {
 }
 
 func main() {
-	app := &Application{
-		allPosts:   &AllPostsView{},
-		postDetail: &PostDetailView{},
-		posts:      NewPosts(),
+
+	app := &Application{}
+	if err := app.Init(); err != nil {
+		log.Fatal(err)
 	}
 
 	http.Handle("/posts/", app.postDetail)
