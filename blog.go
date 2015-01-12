@@ -228,34 +228,36 @@ func (app *Application) HandleEvent(event Event) error {
 }
 
 func (app *Application) HandleCommand(command Command) (Events, error) {
+	var events Events
+	var err error
+
+	errs := Errors{}
+
 	switch cmd := command.(type) {
 	case *PublishPostCommand:
-		return app.PublishPost(cmd)
+		events, err = app.PublishPost(cmd)
 	}
 
-	return nil, nil
+	if err != nil {
+		return nil, err
+	}
+
+	for _, event := range events {
+		if err := app.eventStore.HandleEvent(event); err != nil {
+			errs = append(errs, err)
+		}
+
+		if err := app.HandleEvent(event); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return events, errs.Return()
 }
 
 func (app *Application) PublishPost(cmd *PublishPostCommand) (Events, error) {
 	p := &Post{posts: app.posts}
 	return p.Publish(cmd.Title, cmd.Content)
-}
-
-func RunCommand(cmd Command, target CommandHandler, processor EventHandler) error {
-	events, err := target.HandleCommand(cmd)
-	if err != nil {
-		return err
-	}
-
-	errors := Errors{}
-	for _, event := range events {
-		if err := processor.HandleEvent(event); err != nil {
-			log.Printf("Error: %s\nWhile processing: %#v\n", err.Error(), event)
-			errors = append(errors, err)
-		}
-	}
-
-	return errors.Return()
 }
 
 func main() {

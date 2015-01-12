@@ -61,7 +61,7 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			Title:   req.FormValue("title"),
 			Content: req.FormValue("content"),
 		}
-		if err := RunCommand(cmd, app, app); err != nil {
+		if _, err := app.HandleCommand(cmd); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {
 			w.WriteHeader(http.StatusCreated)

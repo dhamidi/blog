@@ -110,17 +110,6 @@ func TestPost_Publish_StripsSpacesFromContent(t *testing.T) {
 	assertEqual(t, published.Content, "world")
 }
 
-func TestApplication_HandleCommand_PublishesPost(t *testing.T) {
-	app := &Application{posts: NewPosts()}
-	handler := &mockEventHandler{}
-
-	RunCommand(&PublishPostCommand{
-		Title:   "  hello  ",
-		Content: "  world  ",
-	}, app, handler)
-
-	_ = handler.Events[0].(*PostPublishedEvent)
-}
 func TestAllPostsView_SortsByPublishedAtDescending(t *testing.T) {
 	view := &AllPostsView{}
 	ids := []string{Id(), Id()}
