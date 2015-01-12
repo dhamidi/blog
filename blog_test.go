@@ -13,6 +13,10 @@ type mockEventHandler struct {
 	Events Events
 }
 
+func newPost() *Post {
+	return &Post{posts: NewPosts()}
+}
+
 func (handler *mockEventHandler) HandleEvent(event Event) error {
 	handler.Events = append(handler.Events, event)
 	return nil
@@ -53,7 +57,7 @@ func assertEqual(t *testing.T, actual, expected interface{}) {
 }
 
 func TestPost_Publish_ReturnsEvent(t *testing.T) {
-	post := &Post{}
+	post := newPost()
 	events, err := post.Publish("hello", "world")
 	if err != nil {
 		t.Fatal(err)
@@ -73,19 +77,19 @@ func TestPost_Publish_ReturnsEvent(t *testing.T) {
 }
 
 func TestPost_Publish_RequiresTitle(t *testing.T) {
-	post := &Post{}
+	post := newPost()
 	_, err := post.Publish("", "world")
 	assertRequired(t, err, "Title")
 }
 
 func TestPost_Publish_RequiresContent(t *testing.T) {
-	post := &Post{}
+	post := newPost()
 	_, err := post.Publish("hello", "")
 	assertRequired(t, err, "Content")
 }
 
 func TestPost_Publish_StripsSpacesFromTitle(t *testing.T) {
-	post := &Post{}
+	post := newPost()
 	events, err := post.Publish("  hello  ", "  world  ")
 	if err != nil {
 		t.Fatal(err)
@@ -96,7 +100,7 @@ func TestPost_Publish_StripsSpacesFromTitle(t *testing.T) {
 }
 
 func TestPost_Publish_StripsSpacesFromContent(t *testing.T) {
-	post := &Post{}
+	post := newPost()
 	events, err := post.Publish("hello", "  world  ")
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +111,7 @@ func TestPost_Publish_StripsSpacesFromContent(t *testing.T) {
 }
 
 func TestApplication_HandleCommand_PublishesPost(t *testing.T) {
-	app := &Application{}
+	app := &Application{posts: NewPosts()}
 	handler := &mockEventHandler{}
 
 	RunCommand(&PublishPostCommand{

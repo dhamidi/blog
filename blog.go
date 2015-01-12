@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/dhamidi/set"
 	"github.com/nu7hatch/gouuid"
 	"github.com/russross/blackfriday"
 )
@@ -94,7 +95,30 @@ func (err *ValidationError) Error() string {
 	return string(data)
 }
 
-type Post struct{}
+type Posts struct {
+	titles *set.String
+}
+
+func NewPosts() *Posts {
+	return &Posts{titles: &set.String{}}
+}
+
+func (p *Posts) HandleEvent(event Event) error {
+	switch evt := event.(type) {
+	case *PostPublishedEvent:
+		p.titles.Add(evt.Title)
+	}
+
+	return nil
+}
+
+func (p *Posts) UniqueTitle(title string) bool {
+	return !p.titles.Contains(title)
+}
+
+type Post struct {
+	posts *Posts
+}
 
 type PostPublishedEvent struct {
 	PostId      string
@@ -125,6 +149,10 @@ func (p *Post) Publish(title, content string) (Events, error) {
 		validation.Put("Content", errors.New("empty"))
 	}
 
+	if !p.posts.UniqueTitle(title) {
+		validation.Put("Title", errors.New("exists"))
+	}
+
 	return Events{
 		&PostPublishedEvent{
 			PostId:      Id(),
@@ -143,6 +171,7 @@ type PublishPostCommand struct {
 type Application struct {
 	allPosts   *AllPostsView
 	postDetail *PostDetailView
+	posts      *Posts
 }
 
 func (app *Application) HandleEvent(event Event) error {
@@ -152,6 +181,10 @@ func (app *Application) HandleEvent(event Event) error {
 	}
 
 	if err := app.postDetail.HandleEvent(event); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := app.posts.HandleEvent(event); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -185,7 +218,7 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func (app *Application) PublishPost(cmd *PublishPostCommand) (Events, error) {
-	p := &Post{}
+	p := &Post{posts: app.posts}
 	return p.Publish(cmd.Title, cmd.Content)
 }
 
@@ -338,6 +371,7 @@ func main() {
 	app := &Application{
 		allPosts:   &AllPostsView{},
 		postDetail: &PostDetailView{},
+		posts:      NewPosts(),
 	}
 
 	http.Handle("/posts/", app.postDetail)
