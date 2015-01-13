@@ -62,7 +62,15 @@ func (verr ValidationError) Return() error {
 }
 
 type Aggregate interface {
+	EventHandler
+	CommandHandler
+}
+
+type CommandHandler interface {
 	When(Command) (*Events, error)
+}
+
+type EventHandler interface {
 	Apply(Event) error
 }
 
@@ -76,7 +84,7 @@ type EventList struct {
 
 type Events EventList
 
-var NoEvents *Events
+var NoEvents = &Events{items: []Event{}}
 
 func ListOfEvents(events ...Event) *Events {
 	return &Events{items: events}
@@ -91,14 +99,14 @@ func (e *Events) Items() []Event {
 	return e.items
 }
 
-func (e *Events) ApplyTo(agg Aggregate) {
+func (e *Events) ApplyTo(agg EventHandler) {
 	for _, event := range e.items {
 		agg.Apply(event)
 	}
 }
 
 type Command interface {
-	Validate() error
+	Validate() ValidationError
 }
 
 type PostAggregate struct {
@@ -110,7 +118,7 @@ type PublishPostCommand struct {
 	Content string
 }
 
-func (cmd *PublishPostCommand) Validate() error {
+func (cmd *PublishPostCommand) Validate() ValidationError {
 	cmd.Title = strings.TrimSpace(cmd.Title)
 	cmd.Content = strings.TrimSpace(cmd.Content)
 
@@ -122,7 +130,7 @@ func (cmd *PublishPostCommand) Validate() error {
 		verr.Add("Content", ErrEmpty)
 	}
 
-	return verr.Return()
+	return verr
 }
 
 type PostPublishedEvent struct {
@@ -144,6 +152,8 @@ func (post *PostAggregate) When(command Command) (*Events, error) {
 	switch cmd := command.(type) {
 	case *PublishPostCommand:
 		return post.publish(cmd)
+	default:
+		panic(fmt.Errorf("%s cannot handle %#v\n", reflect.TypeOf(post).Name(), command))
 	}
 
 	return NoEvents, nil
@@ -163,20 +173,89 @@ func (post *PostAggregate) Apply(event Event) error {
 }
 
 func (post *PostAggregate) publish(cmd *PublishPostCommand) (*Events, error) {
-	if post.uniqueTitle(cmd.Title) {
+	verr := cmd.Validate()
+
+	if !post.uniqueTitle(cmd.Title) {
+		verr.Add("Title", ErrNotUnique)
+	}
+
+	if err := verr.Return(); err != nil {
+		return NoEvents, err
+	} else {
 		return ListOfEvents(&PostPublishedEvent{
 			PostId:      Id(),
 			Title:       cmd.Title,
 			Content:     cmd.Content,
 			PublishedAt: time.Now(),
 		}), nil
-	} else {
-		return NoEvents, ValidationError{"Title": []error{ErrNotUnique}}
 	}
 }
 
 func (post *PostAggregate) uniqueTitle(title string) bool {
-	return !post.titles[title]
+	return post.titles[title] != true
+}
+
+type Post struct {
+	content string
+}
+
+type RewordPostCommand struct {
+	PostId     string
+	NewContent string
+}
+
+type PostRewordedEvent struct {
+	PostId          string
+	RewordedContent string
+	RewordedAt      time.Time
+}
+
+func (event *PostRewordedEvent) Tag() string         { return "posts.reworded" }
+func (event *PostRewordedEvent) AggregateId() string { return event.PostId }
+
+func (cmd *RewordPostCommand) Validate() ValidationError {
+	verr := ValidationError{}
+
+	cmd.NewContent = strings.TrimSpace(cmd.NewContent)
+	if cmd.NewContent == "" {
+		verr.Add("Content", ErrEmpty)
+	}
+
+	return verr
+}
+
+func (post *Post) Apply(event Event) error {
+	switch evt := event.(type) {
+	case *PostPublishedEvent:
+		post.content = evt.Content
+	case *PostRewordedEvent:
+		post.content = evt.RewordedContent
+	}
+
+	return nil
+}
+
+func (post *Post) When(command Command) (*Events, error) {
+	switch cmd := command.(type) {
+	case *RewordPostCommand:
+		return post.reword(cmd)
+	}
+
+	return NoEvents, nil
+}
+
+func (post *Post) reword(cmd *RewordPostCommand) (*Events, error) {
+	verr := cmd.Validate()
+
+	if cmd.NewContent == post.content {
+		return NoEvents, verr.Return()
+	}
+
+	return ListOfEvents(&PostRewordedEvent{
+		PostId:          cmd.PostId,
+		RewordedContent: cmd.NewContent,
+		RewordedAt:      time.Now(),
+	}), nil
 }
 
 type FileStore struct {
@@ -323,7 +402,9 @@ func (fs *FileStore) storeForAggregate(now time.Time, id string, data []byte) er
 	dirname := filepath.Join(fs.dir, id)
 	fname := filepath.Join(dirname, nowStr)
 
-	os.MkdirAll(dirname, 0755)
+	if _, err := os.Stat(dirname); os.IsNotExist(err) {
+		os.MkdirAll(dirname, 0755)
+	}
 
 	out, err := os.OpenFile(fname, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
@@ -338,20 +419,124 @@ func (fs *FileStore) storeForAggregate(now time.Time, id string, data []byte) er
 	}
 }
 
+type Application struct {
+	Store *FileStore
+
+	replaying bool
+
+	aggregates struct {
+		posts *PostAggregate
+	}
+
+	observers []EventHandler
+}
+
+func (app *Application) Init() error {
+	app.Store.RegisterType(&PostPublishedEvent{})
+	app.Store.RegisterType(&PostRewordedEvent{})
+
+	app.aggregates.posts = &PostAggregate{}
+
+	app.observers = []EventHandler{
+		app.aggregates.posts,
+	}
+
+	return app.replayState()
+}
+
+func (app *Application) replayState() error {
+	events, err := app.Store.LoadAll()
+	if err != nil {
+		return fmt.Errorf("Application.replayState: %s\n", err)
+	}
+
+	app.replaying = true
+	err = app.process(events)
+	app.replaying = false
+	return err
+}
+
+func (app *Application) load(aggregate EventHandler, id string) error {
+	events, err := app.Store.LoadStream(id)
+	if err != nil {
+		return err
+	}
+
+	events.ApplyTo(aggregate)
+
+	return nil
+}
+
+func (app *Application) PublishPost(cmd *PublishPostCommand) error {
+	events, err := app.aggregates.posts.When(cmd)
+	if err != nil {
+		return err
+	} else {
+		return app.process(events)
+	}
+}
+
+func (app *Application) RewordPost(cmd *RewordPostCommand) error {
+	post := &Post{}
+	if err := app.load(post, cmd.PostId); err != nil {
+		return fmt.Errorf("Application.load: %s\n", err)
+	}
+
+	events, err := post.When(cmd)
+	if err != nil {
+		return err
+	} else {
+		return app.process(events)
+	}
+}
+
+func (app *Application) Apply(event Event) error {
+	for _, observer := range app.observers {
+		if err := observer.Apply(event); err != nil {
+			log.Printf("Application.Apply: %s\nWhile processing:\n%#v\n", err, event)
+		}
+	}
+
+	return nil
+}
+
+func (app *Application) process(events *Events) error {
+	for _, event := range events.Items() {
+		log.Printf("Application.process: %#v\n", event)
+
+		if !app.replaying {
+			if err := app.Store.Store(event); err != nil {
+				log.Printf("Application.process: %s\n", err)
+			} else {
+				log.Printf("Application.process: event stored\n")
+			}
+		}
+
+		app.Apply(event)
+	}
+
+	return nil
+}
+
 func main() {
 	store, err := NewFileStore("_events")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	store.RegisterType(&PostPublishedEvent{})
-
-	events, err := store.LoadAll()
-	if err != nil {
+	app := Application{Store: store}
+	if err := app.Init(); err != nil {
 		log.Fatal(err)
 	}
 
-	for _, event := range events.Items() {
-		fmt.Printf("%#v\n", event)
+	if err := app.RewordPost(&RewordPostCommand{
+		PostId:     "b4fc840c-0ee7-4854-410f-512978017b0d",
+		NewContent: "hello, world",
+	}); err != nil {
+		if verr, ok := err.(ValidationError); ok {
+			log.Println(verr)
+		} else {
+			log.Fatal(err)
+		}
 	}
 }
