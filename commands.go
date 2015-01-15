@@ -7,15 +7,8 @@ type RewordPostCommand struct {
 	NewContent string
 }
 
-func (cmd *RewordPostCommand) Validate() ValidationError {
-	verr := ValidationError{}
-
+func (cmd *RewordPostCommand) Sanitize() {
 	cmd.NewContent = strings.TrimSpace(cmd.NewContent)
-	if cmd.NewContent == "" {
-		verr.Add("Content", ErrEmpty)
-	}
-
-	return verr
 }
 
 type PublishPostCommand struct {
@@ -25,19 +18,13 @@ type PublishPostCommand struct {
 	postId string
 }
 
-func (cmd *PublishPostCommand) Validate() ValidationError {
+func (cmd *PublishPostCommand) Sanitize() {
 	cmd.Title = strings.TrimSpace(cmd.Title)
 	cmd.Content = strings.TrimSpace(cmd.Content)
 
-	verr := ValidationError{}
-	if cmd.Title == "" {
-		verr.Add("Title", ErrEmpty)
+	if cmd.postId == "" {
+		cmd.postId = Id()
 	}
-	if cmd.Content == "" {
-		verr.Add("Content", ErrEmpty)
-	}
-
-	return verr
 }
 
 type CommentOnPostCommand struct {
@@ -46,17 +33,7 @@ type CommentOnPostCommand struct {
 	Author  string
 }
 
-func (cmd *CommentOnPostCommand) Validate() ValidationError {
-	verr := ValidationError{}
+func (cmd *CommentOnPostCommand) Sanitize() {
 	cmd.Content = strings.TrimSpace(cmd.Content)
 	cmd.Author = strings.TrimSpace(cmd.Author)
-
-	if cmd.Content == "" {
-		verr.Add("Content", ErrEmpty)
-	}
-	if cmd.Author == "" {
-		verr.Add("Author", ErrEmpty)
-	}
-
-	return verr
 }

@@ -6,7 +6,7 @@ type Posts struct {
 	titles map[string]bool
 }
 
-func (posts *Posts) New() *Post {
+func (posts *Posts) New() Aggregate {
 	return &Post{posts: posts}
 }
 
@@ -59,7 +59,13 @@ func (post *Post) When(command Command) (*Events, error) {
 }
 
 func (post *Post) publish(cmd *PublishPostCommand) (*Events, error) {
-	verr := cmd.Validate()
+	verr := ValidationError{}
+	if cmd.Title == "" {
+		verr.Add("Title", ErrEmpty)
+	}
+	if cmd.Content == "" {
+		verr.Add("Content", ErrEmpty)
+	}
 
 	if !post.uniqueTitle(cmd.Title) {
 		verr.Add("Title", ErrNotUnique)
@@ -78,7 +84,10 @@ func (post *Post) publish(cmd *PublishPostCommand) (*Events, error) {
 }
 
 func (post *Post) reword(cmd *RewordPostCommand) (*Events, error) {
-	verr := cmd.Validate()
+	verr := ValidationError{}
+	if cmd.NewContent == "" {
+		verr.Add("Content", ErrEmpty)
+	}
 
 	if cmd.NewContent == post.content {
 		return NoEvents, verr.Return()
@@ -92,7 +101,13 @@ func (post *Post) reword(cmd *RewordPostCommand) (*Events, error) {
 }
 
 func (post *Post) comment(cmd *CommentOnPostCommand) (*Events, error) {
-	verr := cmd.Validate()
+	verr := ValidationError{}
+	if cmd.Content == "" {
+		verr.Add("Content", ErrEmpty)
+	}
+	if cmd.Author == "" {
+		verr.Add("Author", ErrEmpty)
+	}
 
 	if post.id == "" {
 		verr.Add("Posts", ErrNotFound)

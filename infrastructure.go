@@ -7,6 +7,10 @@ type Aggregate interface {
 	CommandHandler
 }
 
+type Type interface {
+	New() Aggregate
+}
+
 type CommandHandler interface {
 	When(Command) (*Events, error)
 }
@@ -47,7 +51,7 @@ func (e *Events) ApplyTo(agg EventHandler) {
 }
 
 type Command interface {
-	Validate() ValidationError
+	Sanitize()
 }
 
 func Id() string {

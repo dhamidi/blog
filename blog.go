@@ -49,54 +49,70 @@ func (app *Application) replayState() error {
 	return err
 }
 
-func (app *Application) load(aggregate EventHandler, id string) error {
+func (app *Application) load(typ Type, id string) (Aggregate, error) {
+	aggregate := typ.New()
 	events, err := app.Store.LoadStream(id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	events.ApplyTo(aggregate)
 
-	return nil
+	return aggregate, nil
 }
 
-func (app *Application) PublishPost(cmd *PublishPostCommand) error {
-	cmd.postId = Id()
+func (app *Application) When(command Command) (*Events, error) {
+	command.Sanitize()
+
+	switch cmd := command.(type) {
+	case *PublishPostCommand:
+		return app.publishPost(cmd)
+	case *RewordPostCommand:
+		return app.rewordPost(cmd)
+	case *CommentOnPostCommand:
+		return app.commentOnPost(cmd)
+	}
+
+	return NoEvents, nil
+}
+
+func (app *Application) publishPost(cmd *PublishPostCommand) (*Events, error) {
 	post := app.types.posts.New()
 	events, err := post.When(cmd)
 
 	if err != nil {
-		return err
+		return NoEvents, err
 	} else {
-		return app.process(events)
+		return events, app.process(events)
 	}
 }
 
-func (app *Application) RewordPost(cmd *RewordPostCommand) error {
-	post := app.types.posts.New()
-	if err := app.load(post, cmd.PostId); err != nil {
-		return fmt.Errorf("Application.load: %s\n", err)
+func (app *Application) rewordPost(cmd *RewordPostCommand) (*Events, error) {
+	post, err := app.load(app.types.posts, cmd.PostId)
+
+	if err != nil {
+		return NoEvents, fmt.Errorf("Application.load: %s\n", err)
 	}
 
 	events, err := post.When(cmd)
 	if err != nil {
-		return err
+		return NoEvents, err
 	} else {
-		return app.process(events)
+		return events, app.process(events)
 	}
 }
 
-func (app *Application) CommentOnPost(cmd *CommentOnPostCommand) error {
-	post := app.types.posts.New()
-	if err := app.load(post, cmd.PostId); err != nil {
-		return fmt.Errorf("Application.load: %s\n", err)
+func (app *Application) commentOnPost(cmd *CommentOnPostCommand) (*Events, error) {
+	post, err := app.load(app.types.posts, cmd.PostId)
+	if err != nil {
+		return NoEvents, fmt.Errorf("Application.load: %s\n", err)
 	}
 
 	events, err := post.When(cmd)
 	if err != nil {
-		return err
+		return NoEvents, err
 	} else {
-		return app.process(events)
+		return events, app.process(events)
 	}
 }
 
@@ -149,7 +165,7 @@ func main() {
 				Title:   req.FormValue("title"),
 				Content: req.FormValue("content"),
 			}
-			if err := app.PublishPost(cmd); err != nil {
+			if _, err := app.When(cmd); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 			} else {
 				w.Header().Set("Location", fmt.Sprintf("/posts/%s", cmd.postId))
