@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 )
 
 type Application struct {
@@ -138,14 +139,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := app.PublishPost(&PublishPostCommand{
-		Title:   "hello",
-		Content: "world",
-	}); err != nil {
-		if verr, ok := err.(ValidationError); ok {
-			log.Println(verr)
-		} else {
-			log.Fatal(err)
+	http.HandleFunc("/posts", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case "GET":
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(app.views.allPosts.Render())
+		case "POST":
+			cmd := &PublishPostCommand{
+				Title:   req.FormValue("title"),
+				Content: req.FormValue("content"),
+			}
+			if err := app.PublishPost(cmd); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				w.Header().Set("Location", fmt.Sprintf("/posts/%s", cmd.postId))
+				w.WriteHeader(http.StatusCreated)
+			}
+		default:
+			http.Error(w, "Only POST is allowed.", http.StatusMethodNotAllowed)
 		}
-	}
+	})
+	log.Fatal(http.ListenAndServe(":8000", nil))
 }
