@@ -38,5 +38,6 @@ func (verr ValidationError) Return() error {
 
 var (
 	ErrNotUnique = errors.New("not unique")
+	ErrNotFound  = errors.New("not found")
 	ErrEmpty     = errors.New("empty")
 )

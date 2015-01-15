@@ -20,6 +20,7 @@ type Application struct {
 func (app *Application) Init() error {
 	app.Store.RegisterType(&PostPublishedEvent{})
 	app.Store.RegisterType(&PostRewordedEvent{})
+	app.Store.RegisterType(&PostCommentedEvent{})
 
 	app.types.posts = &Posts{}
 
@@ -66,6 +67,20 @@ func (app *Application) PublishPost(cmd *PublishPostCommand) error {
 }
 
 func (app *Application) RewordPost(cmd *RewordPostCommand) error {
+	post := app.types.posts.New()
+	if err := app.load(post, cmd.PostId); err != nil {
+		return fmt.Errorf("Application.load: %s\n", err)
+	}
+
+	events, err := post.When(cmd)
+	if err != nil {
+		return err
+	} else {
+		return app.process(events)
+	}
+}
+
+func (app *Application) CommentOnPost(cmd *CommentOnPostCommand) error {
 	post := app.types.posts.New()
 	if err := app.load(post, cmd.PostId); err != nil {
 		return fmt.Errorf("Application.load: %s\n", err)
