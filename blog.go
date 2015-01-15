@@ -15,6 +15,9 @@ type Application struct {
 	}
 
 	observers []EventHandler
+	views     struct {
+		allPosts *AllPostsJSONView
+	}
 }
 
 func (app *Application) Init() error {
@@ -23,9 +26,11 @@ func (app *Application) Init() error {
 	app.Store.RegisterType(&PostCommentedEvent{})
 
 	app.types.posts = &Posts{}
+	app.views.allPosts = &AllPostsJSONView{}
 
 	app.observers = []EventHandler{
 		app.types.posts,
+		app.views.allPosts,
 	}
 
 	return app.replayState()
