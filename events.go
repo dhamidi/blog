@@ -25,3 +25,13 @@ func (event *PostPublishedEvent) Tag() string {
 func (event *PostPublishedEvent) AggregateId() string {
 	return event.PostId
 }
+
+type PostCommentedEvent struct {
+	PostId      string
+	AuthorName  string
+	Content     string
+	CommentedAt time.Time
+}
+
+func (event *PostCommentedEvent) Tag() string         { return "post.commented" }
+func (event *PostCommentedEvent) AggregateId() string { return event.PostId }

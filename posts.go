@@ -51,6 +51,8 @@ func (post *Post) When(command Command) (*Events, error) {
 		return post.publish(cmd)
 	case *RewordPostCommand:
 		return post.reword(cmd)
+	case *CommentOnPostCommand:
+		return post.comment(cmd)
 	}
 
 	return NoEvents, nil
@@ -87,6 +89,21 @@ func (post *Post) reword(cmd *RewordPostCommand) (*Events, error) {
 		RewordedContent: cmd.NewContent,
 		RewordedAt:      time.Now(),
 	}), nil
+}
+
+func (post *Post) comment(cmd *CommentOnPostCommand) (*Events, error) {
+	verr := cmd.Validate()
+
+	if post.id == "" {
+		verr.Add("Posts", ErrNotFound)
+	}
+
+	return ListOfEvents(&PostCommentedEvent{
+		PostId:      post.id,
+		Content:     cmd.Content,
+		AuthorName:  cmd.Author,
+		CommentedAt: time.Now(),
+	}), verr.Return()
 }
 
 func (post *Post) uniqueTitle(title string) bool {

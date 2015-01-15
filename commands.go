@@ -39,3 +39,24 @@ func (cmd *PublishPostCommand) Validate() ValidationError {
 
 	return verr
 }
+
+type CommentOnPostCommand struct {
+	PostId  string
+	Content string
+	Author  string
+}
+
+func (cmd *CommentOnPostCommand) Validate() ValidationError {
+	verr := ValidationError{}
+	cmd.Content = strings.TrimSpace(cmd.Content)
+	cmd.Author = strings.TrimSpace(cmd.Author)
+
+	if cmd.Content == "" {
+		verr.Add("Content", ErrEmpty)
+	}
+	if cmd.Author == "" {
+		verr.Add("Author", ErrEmpty)
+	}
+
+	return verr
+}
