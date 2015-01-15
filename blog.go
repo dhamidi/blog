@@ -57,7 +57,7 @@ func (app *Application) PublishPost(cmd *PublishPostCommand) error {
 	cmd.postId = Id()
 	post := app.types.posts.New()
 	events, err := post.When(cmd)
-	log.Printf("events = %#v\nerr = %#v\n", events, err)
+
 	if err != nil {
 		return err
 	} else {
