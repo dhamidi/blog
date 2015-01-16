@@ -155,6 +155,24 @@ func main() {
 		log.Fatal(err)
 	}
 
+	http.HandleFunc("/comments", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case "POST":
+			cmd := &CommentOnPostCommand{
+				PostId:  req.FormValue("post_id"),
+				Author:  req.FormValue("author"),
+				Content: req.FormValue("content"),
+			}
+
+			if _, err := app.HandleCommand(cmd); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				w.Header().Set("Location", fmt.Sprintf("/posts/%s", cmd.PostId))
+				w.WriteHeader(http.StatusSeeOther)
+			}
+		}
+	})
+
 	http.HandleFunc("/posts", func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
 		case "GET":
