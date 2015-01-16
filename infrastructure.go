@@ -12,11 +12,11 @@ type Type interface {
 }
 
 type CommandHandler interface {
-	When(Command) (*Events, error)
+	HandleCommand(Command) (*Events, error)
 }
 
 type EventHandler interface {
-	Apply(Event) error
+	HandleEvent(Event) error
 }
 
 type Event interface {
@@ -46,7 +46,7 @@ func (e *Events) Items() []Event {
 
 func (e *Events) ApplyTo(agg EventHandler) {
 	for _, event := range e.items {
-		agg.Apply(event)
+		agg.HandleEvent(event)
 	}
 }
 

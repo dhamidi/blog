@@ -10,7 +10,7 @@ func (posts *Posts) New() Aggregate {
 	return &Post{posts: posts}
 }
 
-func (posts *Posts) Apply(event Event) error {
+func (posts *Posts) HandleEvent(event Event) error {
 	if posts.titles == nil {
 		posts.titles = map[string]bool{}
 	}
@@ -33,7 +33,7 @@ type Post struct {
 	content string
 }
 
-func (post *Post) Apply(event Event) error {
+func (post *Post) HandleEvent(event Event) error {
 	switch evt := event.(type) {
 	case *PostPublishedEvent:
 		post.id = evt.PostId
@@ -45,7 +45,7 @@ func (post *Post) Apply(event Event) error {
 	return nil
 }
 
-func (post *Post) When(command Command) (*Events, error) {
+func (post *Post) HandleCommand(command Command) (*Events, error) {
 	switch cmd := command.(type) {
 	case *PublishPostCommand:
 		return post.publish(cmd)

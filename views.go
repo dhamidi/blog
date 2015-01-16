@@ -15,7 +15,7 @@ type AllPostsJSONView struct {
 	Collection []*AllPostsPost
 }
 
-func (view *AllPostsJSONView) Apply(event Event) error {
+func (view *AllPostsJSONView) HandleEvent(event Event) error {
 	switch evt := event.(type) {
 	case *PostPublishedEvent:
 		view.addPost(evt)

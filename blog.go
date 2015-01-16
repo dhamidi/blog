@@ -61,7 +61,7 @@ func (app *Application) load(typ Type, id string) (Aggregate, error) {
 	return aggregate, nil
 }
 
-func (app *Application) When(command Command) (*Events, error) {
+func (app *Application) HandleCommand(command Command) (*Events, error) {
 	command.Sanitize()
 
 	switch cmd := command.(type) {
@@ -78,7 +78,7 @@ func (app *Application) When(command Command) (*Events, error) {
 
 func (app *Application) publishPost(cmd *PublishPostCommand) (*Events, error) {
 	post := app.types.posts.New()
-	events, err := post.When(cmd)
+	events, err := post.HandleCommand(cmd)
 
 	if err != nil {
 		return NoEvents, err
@@ -94,7 +94,7 @@ func (app *Application) rewordPost(cmd *RewordPostCommand) (*Events, error) {
 		return NoEvents, fmt.Errorf("Application.load: %s\n", err)
 	}
 
-	events, err := post.When(cmd)
+	events, err := post.HandleCommand(cmd)
 	if err != nil {
 		return NoEvents, err
 	} else {
@@ -108,7 +108,7 @@ func (app *Application) commentOnPost(cmd *CommentOnPostCommand) (*Events, error
 		return NoEvents, fmt.Errorf("Application.load: %s\n", err)
 	}
 
-	events, err := post.When(cmd)
+	events, err := post.HandleCommand(cmd)
 	if err != nil {
 		return NoEvents, err
 	} else {
@@ -116,9 +116,9 @@ func (app *Application) commentOnPost(cmd *CommentOnPostCommand) (*Events, error
 	}
 }
 
-func (app *Application) Apply(event Event) error {
+func (app *Application) HandleEvent(event Event) error {
 	for _, observer := range app.observers {
-		if err := observer.Apply(event); err != nil {
+		if err := observer.HandleEvent(event); err != nil {
 			log.Printf("Application.Apply: %s\nWhile processing:\n%#v\n", err, event)
 		}
 	}
@@ -138,7 +138,7 @@ func (app *Application) process(events *Events) error {
 			}
 		}
 
-		app.Apply(event)
+		app.HandleEvent(event)
 	}
 
 	return nil
@@ -165,7 +165,7 @@ func main() {
 				Title:   req.FormValue("title"),
 				Content: req.FormValue("content"),
 			}
-			if _, err := app.When(cmd); err != nil {
+			if _, err := app.HandleCommand(cmd); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 			} else {
 				w.Header().Set("Location", fmt.Sprintf("/posts/%s", cmd.postId))
