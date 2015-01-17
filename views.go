@@ -90,6 +90,10 @@ func (view *AllPostsJSONView) Render() []byte {
 	return data
 }
 
+func (view *AllPostsJSONView) ById(id string) *AllPostsPost {
+	return view.allPosts[id]
+}
+
 func (view *AllPostsJSONView) addCommentToPost(evt *PostCommentedEvent) {
 	comment := &AllPostsComment{
 		Id:      evt.CommentId,

@@ -15,8 +15,13 @@ type Application struct {
 		posts *Posts
 	}
 
+	mailer Mailer
+
 	observers []EventHandler
-	views     struct {
+
+	processors []EventHandler
+
+	views struct {
 		allPosts *AllPostsJSONView
 	}
 }
@@ -29,6 +34,19 @@ func (app *Application) Init() error {
 
 	app.types.posts = &Posts{}
 	app.views.allPosts = &AllPostsJSONView{}
+
+	if mailer, err := NewSystemMailer("/usr/sbin/sendmail"); err != nil {
+		log.Fatal(err)
+	} else {
+		app.mailer = mailer
+	}
+
+	app.processors = []EventHandler{
+		&PostCommentProcessor{
+			mailer: app.mailer,
+			posts:  app.views.allPosts,
+		},
+	}
 
 	app.observers = []EventHandler{
 		app.types.posts,
@@ -156,6 +174,14 @@ func (app *Application) process(events *Events) error {
 		}
 
 		app.HandleEvent(event)
+
+		if !app.replaying {
+			for _, proc := range app.processors {
+				if err := proc.HandleEvent(event); err != nil {
+					log.Printf("Application.process: %s\n", err)
+				}
+			}
+		}
 	}
 
 	return nil
@@ -217,7 +243,7 @@ func main() {
 	http.HandleFunc("/posts", func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
 		case "GET":
-			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.Write(app.views.allPosts.Render())
 		case "POST":
 			cmd := &PublishPostCommand{
