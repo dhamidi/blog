@@ -22,7 +22,7 @@ type Application struct {
 	processors []EventHandler
 
 	views struct {
-		allPosts *AllPostsJSONView
+		allPosts *AllPostsView
 	}
 }
 
@@ -33,7 +33,7 @@ func (app *Application) Init() error {
 	app.Store.RegisterType(&PostCommentAuthenticatedEvent{})
 
 	app.types.posts = &Posts{}
-	app.views.allPosts = &AllPostsJSONView{}
+	app.views.allPosts = &AllPostsView{}
 
 	if mailer, err := NewSystemMailer("/usr/sbin/sendmail"); err != nil {
 		log.Fatal(err)
@@ -223,7 +223,8 @@ func main() {
 			if _, err := app.HandleCommand(cmd); err != nil {
 				respondWithError(w, err)
 			} else {
-				w.WriteHeader(http.StatusNoContent)
+				w.Header().Set("Location", "/posts.html")
+				w.WriteHeader(http.StatusSeeOther)
 			}
 		default:
 			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
@@ -243,7 +244,7 @@ func main() {
 			if _, err := app.HandleCommand(cmd); err != nil {
 				respondWithError(w, err)
 			} else {
-				w.Header().Set("Location", fmt.Sprintf("/posts/%s", cmd.PostId))
+				w.Header().Set("Location", "/posts.html")
 				w.WriteHeader(http.StatusSeeOther)
 			}
 		default:
@@ -252,11 +253,28 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/posts", func(w http.ResponseWriter, req *http.Request) {
+	http.HandleFunc("/posts.json", func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
 		case "GET":
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.Write(app.views.allPosts.Render())
+			w.Write(app.views.allPosts.RenderJSON())
+		default:
+			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/posts.html", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case "GET":
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(app.views.allPosts.RenderHTML())
+		default:
+			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/posts", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case "POST":
 			cmd := &PublishPostCommand{
 				Title:   req.FormValue("title"),

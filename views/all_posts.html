@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Blog</title>
+  </head>
+  <body>
+    {{range .Collection}}
+    <article>
+      <h1>{{.Title}}</h1>
+      <pre>{{.Content}}</pre>
+      <div class="comments">
+        <form action="/comments" method="POST">
+          <fieldset>
+            <legend>Comment on this post</legend>
+            <input type="hidden" name="post_id" value="{{.Id}}" />
+            <label>Author <input name="author" type="text" required></label>
+            <label>Email: <input name="email" type="email" required></label>
+          </fieldset>
+          <fieldset>
+            <textarea name="content" required></textarea>
+          </fieldset>
+          <fieldset>
+            <button type="submit">Comment</button>
+          </fieldset>
+        </form>
+        {{range .Comments}}
+        <article class="comment">
+          <pre>{{.Author}} wrote:</pre>
+          <pre>{{.Content}}<pre>
+        </article>
+        {{end}}
+      </div>
+    </article>
+    {{end}}
+  </body>
+</html>

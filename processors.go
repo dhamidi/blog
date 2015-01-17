@@ -7,7 +7,7 @@ import (
 
 type PostCommentProcessor struct {
 	mailer Mailer
-	posts  *AllPostsJSONView
+	posts  *AllPostsView
 }
 
 func (proc *PostCommentProcessor) HandleEvent(event Event) error {

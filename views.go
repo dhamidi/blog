@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"html/template"
 	"log"
 	"sort"
 	"time"
@@ -44,13 +46,13 @@ func (post *AllPostsPost) authenticateComment(id string) {
 	}
 }
 
-type AllPostsJSONView struct {
+type AllPostsView struct {
 	Collection []*AllPostsPost
 
 	allPosts map[string]*AllPostsPost
 }
 
-func (view *AllPostsJSONView) HandleEvent(event Event) error {
+func (view *AllPostsView) HandleEvent(event Event) error {
 	switch evt := event.(type) {
 	case *PostPublishedEvent:
 		view.addPost(evt)
@@ -63,15 +65,16 @@ func (view *AllPostsJSONView) HandleEvent(event Event) error {
 	return nil
 }
 
-func (view *AllPostsJSONView) addPost(evt *PostPublishedEvent) {
+func (view *AllPostsView) addPost(evt *PostPublishedEvent) {
 	if view.allPosts == nil {
 		view.allPosts = map[string]*AllPostsPost{}
 	}
 
 	post := &AllPostsPost{
-		Id:      evt.PostId,
-		Title:   evt.Title,
-		Content: evt.Content,
+		Id:       evt.PostId,
+		Title:    evt.Title,
+		Content:  evt.Content,
+		Comments: []*AllPostsComment{},
 
 		allComments: map[string]*AllPostsComment{},
 	}
@@ -80,21 +83,11 @@ func (view *AllPostsJSONView) addPost(evt *PostPublishedEvent) {
 	view.Collection = append(view.Collection, post)
 }
 
-func (view *AllPostsJSONView) Render() []byte {
-	data, err := json.MarshalIndent(view, "", "  ")
-	if err != nil {
-		log.Printf("AllPostsJSONView.Render: %s\n", err)
-		return []byte{}
-	}
-
-	return data
-}
-
-func (view *AllPostsJSONView) ById(id string) *AllPostsPost {
+func (view *AllPostsView) ById(id string) *AllPostsPost {
 	return view.allPosts[id]
 }
 
-func (view *AllPostsJSONView) addCommentToPost(evt *PostCommentedEvent) {
+func (view *AllPostsView) addCommentToPost(evt *PostCommentedEvent) {
 	comment := &AllPostsComment{
 		Id:      evt.CommentId,
 		Author:  evt.AuthorName,
@@ -107,7 +100,32 @@ func (view *AllPostsJSONView) addCommentToPost(evt *PostCommentedEvent) {
 	post.addComment(comment)
 }
 
-func (view *AllPostsJSONView) authenticateComment(evt *PostCommentAuthenticatedEvent) {
+func (view *AllPostsView) authenticateComment(evt *PostCommentAuthenticatedEvent) {
 	post := view.allPosts[evt.PostId]
 	post.authenticateComment(evt.CommentId)
+}
+
+func (view *AllPostsView) RenderJSON() []byte {
+	data, err := json.MarshalIndent(view, "", "  ")
+	if err != nil {
+		log.Printf("AllPostsJSONView.Render: %s\n", err)
+		return []byte{}
+	}
+
+	return data
+}
+
+func (view *AllPostsView) RenderHTML() []byte {
+	tmpl, err := template.ParseFiles("views/all_posts.html")
+	if err != nil {
+		return []byte(err.Error())
+	}
+
+	out := bytes.NewBufferString("")
+	tmpl.Execute(out, view)
+	if err := error(nil); err != nil {
+		return []byte(err.Error())
+	} else {
+		return out.Bytes()
+	}
 }
