@@ -7,7 +7,10 @@ type Posts struct {
 }
 
 func (posts *Posts) New() Aggregate {
-	return &Post{posts: posts}
+	return &Post{
+		posts:    posts,
+		comments: map[string]*PostComment{},
+	}
 }
 
 func (posts *Posts) HandleEvent(event Event) error {
@@ -28,9 +31,15 @@ func (posts *Posts) UniqueTitle(title string) bool {
 }
 
 type Post struct {
-	posts   *Posts
-	id      string
-	content string
+	posts    *Posts
+	id       string
+	content  string
+	comments map[string]*PostComment
+}
+
+type PostComment struct {
+	id            string
+	authenticated bool
 }
 
 func (post *Post) HandleEvent(event Event) error {
@@ -40,6 +49,19 @@ func (post *Post) HandleEvent(event Event) error {
 		post.content = evt.Content
 	case *PostRewordedEvent:
 		post.content = evt.RewordedContent
+	case *PostCommentedEvent:
+		comment := &PostComment{
+			id:            evt.CommentId,
+			authenticated: false,
+		}
+		if evt.CommentId == "" {
+			comment.id = Id()
+			evt.CommentId = comment.id
+			comment.authenticated = true
+		}
+		post.comments[evt.CommentId] = comment
+	case *PostCommentAuthenticatedEvent:
+		post.comments[evt.CommentId].authenticated = true
 	}
 
 	return nil
@@ -53,6 +75,8 @@ func (post *Post) HandleCommand(command Command) (*Events, error) {
 		return post.reword(cmd)
 	case *CommentOnPostCommand:
 		return post.comment(cmd)
+	case *PostAuthenticateCommentCommand:
+		return post.authenticateComment(cmd)
 	}
 
 	return NoEvents, nil
@@ -100,6 +124,22 @@ func (post *Post) reword(cmd *RewordPostCommand) (*Events, error) {
 	}), nil
 }
 
+func (post *Post) authenticateComment(cmd *PostAuthenticateCommentCommand) (*Events, error) {
+	verr := ValidationError{}
+	comment := post.comments[cmd.CommentId]
+	if comment == nil {
+		verr.Add("Comment", ErrNotFound)
+	} else if comment.authenticated {
+		verr.Add("Comment", ErrAlreadyAuthenticated)
+	}
+
+	return ListOfEvents(&PostCommentAuthenticatedEvent{
+		PostId:          post.id,
+		CommentId:       cmd.CommentId,
+		AuthenticatedAt: time.Now(),
+	}), verr.Return()
+}
+
 func (post *Post) comment(cmd *CommentOnPostCommand) (*Events, error) {
 	verr := ValidationError{}
 	if cmd.Content == "" {
@@ -108,15 +148,16 @@ func (post *Post) comment(cmd *CommentOnPostCommand) (*Events, error) {
 	if cmd.Author == "" {
 		verr.Add("Author", ErrEmpty)
 	}
-
-	if post.id == "" {
-		verr.Add("Posts", ErrNotFound)
+	if cmd.Email == "" {
+		verr.Add("Email", ErrEmpty)
 	}
 
 	return ListOfEvents(&PostCommentedEvent{
 		PostId:      post.id,
+		CommentId:   Id(),
 		Content:     cmd.Content,
 		AuthorName:  cmd.Author,
+		AuthorEmail: cmd.Email,
 		CommentedAt: time.Now(),
 	}), verr.Return()
 }

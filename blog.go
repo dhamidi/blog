@@ -25,6 +25,7 @@ func (app *Application) Init() error {
 	app.Store.RegisterType(&PostPublishedEvent{})
 	app.Store.RegisterType(&PostRewordedEvent{})
 	app.Store.RegisterType(&PostCommentedEvent{})
+	app.Store.RegisterType(&PostCommentAuthenticatedEvent{})
 
 	app.types.posts = &Posts{}
 	app.views.allPosts = &AllPostsJSONView{}
@@ -71,6 +72,8 @@ func (app *Application) HandleCommand(command Command) (*Events, error) {
 		return app.rewordPost(cmd)
 	case *CommentOnPostCommand:
 		return app.commentOnPost(cmd)
+	case *PostAuthenticateCommentCommand:
+		return app.authenticateComment(cmd)
 	}
 
 	return NoEvents, nil
@@ -103,6 +106,20 @@ func (app *Application) rewordPost(cmd *RewordPostCommand) (*Events, error) {
 }
 
 func (app *Application) commentOnPost(cmd *CommentOnPostCommand) (*Events, error) {
+	post, err := app.load(app.types.posts, cmd.PostId)
+	if err != nil {
+		return NoEvents, fmt.Errorf("Application.load: %s\n", err)
+	}
+
+	events, err := post.HandleCommand(cmd)
+	if err != nil {
+		return NoEvents, err
+	} else {
+		return events, app.process(events)
+	}
+}
+
+func (app *Application) authenticateComment(cmd *PostAuthenticateCommentCommand) (*Events, error) {
 	post, err := app.load(app.types.posts, cmd.PostId)
 	if err != nil {
 		return NoEvents, fmt.Errorf("Application.load: %s\n", err)
@@ -155,12 +172,33 @@ func main() {
 		log.Fatal(err)
 	}
 
+	http.HandleFunc("/comments/", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case "GET":
+			id := req.URL.Path[len("/comments/"):]
+			cmd := &PostAuthenticateCommentCommand{
+				PostId:    req.FormValue("post_id"),
+				CommentId: id,
+			}
+
+			if _, err := app.HandleCommand(cmd); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				w.WriteHeader(http.StatusNoContent)
+			}
+		default:
+			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
+
+		}
+	})
+
 	http.HandleFunc("/comments", func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
 		case "POST":
 			cmd := &CommentOnPostCommand{
 				PostId:  req.FormValue("post_id"),
 				Author:  req.FormValue("author"),
+				Email:   req.FormValue("email"),
 				Content: req.FormValue("content"),
 			}
 
@@ -170,6 +208,9 @@ func main() {
 				w.Header().Set("Location", fmt.Sprintf("/posts/%s", cmd.PostId))
 				w.WriteHeader(http.StatusSeeOther)
 			}
+		default:
+			http.Error(w, "Only POST is allowed.", http.StatusMethodNotAllowed)
+
 		}
 	})
 
