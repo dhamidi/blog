@@ -4,6 +4,8 @@ import "time"
 
 type Posts struct {
 	titles map[string]bool
+
+	commentIds map[string]string
 }
 
 func (posts *Posts) New() Aggregate {
@@ -17,13 +19,24 @@ func (posts *Posts) HandleEvent(event Event) error {
 	if posts.titles == nil {
 		posts.titles = map[string]bool{}
 	}
+	if posts.commentIds == nil {
+		posts.commentIds = map[string]string{}
+	}
 
 	switch evt := event.(type) {
 	case *PostPublishedEvent:
 		posts.titles[evt.Title] = true
+	case *PostCommentedEvent:
+		posts.commentIds[evt.CommentId] = evt.PostId
+	case *PostCommentAuthenticatedEvent:
+		delete(posts.commentIds, evt.CommentId)
 	}
 
 	return nil
+}
+
+func (posts *Posts) IdForComment(commentId string) string {
+	return posts.commentIds[commentId]
 }
 
 func (posts *Posts) UniqueTitle(title string) bool {

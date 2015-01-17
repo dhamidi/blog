@@ -27,10 +27,6 @@ func (proc *PostCommentProcessor) authenticateComment(evt *PostCommentedEvent) e
 		Path:   "/comments/" + evt.CommentId,
 	}
 
-	q := link.Query()
-	q.Set("post_id", evt.PostId)
-	link.RawQuery = q.Encode()
-
 	body := fmt.Sprintf(`Subject: Authenticate your comment
 
 Hello %s,

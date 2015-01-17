@@ -41,8 +41,9 @@ func (cmd *CommentOnPostCommand) Sanitize() {
 }
 
 type PostAuthenticateCommentCommand struct {
-	PostId    string
 	CommentId string
+
+	postId string
 }
 
 func (cmd *PostAuthenticateCommentCommand) Sanitize() {}

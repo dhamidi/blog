@@ -138,7 +138,12 @@ func (app *Application) commentOnPost(cmd *CommentOnPostCommand) (*Events, error
 }
 
 func (app *Application) authenticateComment(cmd *PostAuthenticateCommentCommand) (*Events, error) {
-	post, err := app.load(app.types.posts, cmd.PostId)
+	cmd.postId = app.types.posts.IdForComment(cmd.CommentId)
+	if cmd.postId == "" {
+		return NoEvents, ErrNotFound
+	}
+
+	post, err := app.load(app.types.posts, cmd.postId)
 	if err != nil {
 		return NoEvents, fmt.Errorf("Application.load: %s\n", err)
 	}
@@ -187,6 +192,15 @@ func (app *Application) process(events *Events) error {
 	return nil
 }
 
+func respondWithError(w http.ResponseWriter, err error) {
+	switch err {
+	case ErrNotFound:
+		http.Error(w, err.Error(), http.StatusNotFound)
+	default:
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func main() {
 	store, err := NewFileStore("_events")
 	if err != nil {
@@ -203,18 +217,16 @@ func main() {
 		case "GET":
 			id := req.URL.Path[len("/comments/"):]
 			cmd := &PostAuthenticateCommentCommand{
-				PostId:    req.FormValue("post_id"),
 				CommentId: id,
 			}
 
 			if _, err := app.HandleCommand(cmd); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				respondWithError(w, err)
 			} else {
 				w.WriteHeader(http.StatusNoContent)
 			}
 		default:
 			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
-
 		}
 	})
 
@@ -229,7 +241,7 @@ func main() {
 			}
 
 			if _, err := app.HandleCommand(cmd); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				respondWithError(w, err)
 			} else {
 				w.Header().Set("Location", fmt.Sprintf("/posts/%s", cmd.PostId))
 				w.WriteHeader(http.StatusSeeOther)
@@ -251,7 +263,7 @@ func main() {
 				Content: req.FormValue("content"),
 			}
 			if _, err := app.HandleCommand(cmd); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				respondWithError(w, err)
 			} else {
 				w.Header().Set("Location", fmt.Sprintf("/posts/%s", cmd.postId))
 				w.WriteHeader(http.StatusCreated)
