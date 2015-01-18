@@ -4,8 +4,11 @@
 <article class="post">
   <div class="center-line heading">
     <span class="center-line-text post-date">{{.Published}}</span>
-    <a href="{{.Url}}" class="center-line-text post-title">{{.Title}}</a>
   </div>
+  <h1 class="post-title">
+    <a href="{{.Url}}">{{.Title}}</a>
+  </h1>
+
   <div class="post-excerpt">
     {{.ExcerptHTML}}
     <p><a href="{{.Url}}">Read more</a></p>

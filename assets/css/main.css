@@ -1,10 +1,13 @@
 body {
     padding: 0 1ex;
     font-size: large;
-    font-family: Helvetica, sans-serif;
-    max-width: 80ex;
+    font-family: serif;
+    max-width: 40em;
+    line-height: 1.4;
     margin-left: auto;
     margin-right: auto;
+    color: #333;
+    background-color: #fefefe;
 }
 
 h1 {
@@ -39,14 +42,19 @@ pre {
     font-size: normal;
 }
 
+a {
+    color: #2F5EFF;
+}
+
 a:visited {
-    color: black;
+    color: #333;
 }
 
 .center-line {
     position: relative;
     border-bottom: #ccc 1px solid;
     text-align: center;
+    color: #aaa;
 }
 
 .center-line-text {
@@ -58,8 +66,17 @@ a:visited {
     display: inline-block;
 }
 
+.post-title {
+    text-align: center;
+    font-weight: inherit;
+}
+
+.post-title a {
+    text-decoration: none;
+    color: #333;
+}
+
 .heading {
-    font-size: 120%;
     font-weight: bold;
 }
 
@@ -68,9 +85,17 @@ a:visited {
 }
 
 .navlink {
-    font-size: 200%;
+    font-size: 100%;
     padding: 1ex;
     display: inline-block;
+}
+
+.navlink.icon-link {
+    font-size: 200%;
+}
+
+textarea {
+    width: 40em;
 }
 
 .icon-xing-squared {

@@ -1,14 +1,21 @@
 {{define "title"}}{{.Title}}{{end}}
 {{define "main_content"}}<article class="post">
-  <h1>{{.Title}}</h1>
-  <span class="post-published-at">{{.Published}}</span>
+  <h1 class="post-title">{{.Title}}</h1>
+  <p>
+    Published on: <span class="post-published-at">{{.Published}}</span>
+    <a class="navlink" href="#comments">{{.Comments | len}} comment(s)</a>
+  </p>
   {{.ContentHTML}}
-  <div class="post-comments">
-    <strong>Write a comment:</strong>
+  <div class="post-comments" id="comments">
+    <div class="center-line">
+      <strong class="center-line-text">Write a comment:</strong>
+    </div>
     <form method="POST" action="/comments" id="comment-form" class="post-comment">
       <div class="formdata">
         <input type="hidden" name="post_id" value="{{.Id}}">
       </div>
+      <p>
+        <em>After sending the comment through this form, you will receive a confirmation email with a link.  Your comment will appear after you have clicked that link.</em></p>
       <p>
         <label>Email: <input name="email"
                              type="email"
