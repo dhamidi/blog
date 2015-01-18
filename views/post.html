@@ -3,7 +3,7 @@
   <h1 class="post-title">{{.Title}}</h1>
   <p>
     Published on: <span class="post-published-at">{{.Published}}</span>
-    <a class="navlink" href="#comments">{{.Comments | len}} comment(s)</a>
+    <a class="navlink sub" href="#comments">{{.Comments | len}} comment(s)</a>
   </p>
   {{.ContentHTML}}
   <div class="post-comments" id="comments">
@@ -27,7 +27,7 @@
                             placeholder="John Doe" /></label>
       </p>
       <p>
-        <textarea name="content"></textarea>
+        <textarea name="content" rows="10"></textarea>
       </p>
       <p><button type="submit">Add comment</button></p>
     </form>

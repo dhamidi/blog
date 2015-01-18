@@ -85,9 +85,13 @@ a:visited {
 }
 
 .navlink {
-    font-size: 100%;
+    font-size: 120%;
     padding: 1ex;
     display: inline-block;
+}
+
+.navlink.sub {
+    font-size: 100%;
 }
 
 .navlink.icon-link {
@@ -112,11 +116,35 @@ textarea {
 
 @media(max-width: 600px) {
     .navlink {
+        text-align: center;
+        vertical-align: middle;
+        display: block;
+    }
+
+    label {
+        display: block;
+        overflow-x: hidden;
+    }
+
+    input {
+        font-size: 120%;
+    }
+
+    button[type=submit] {
         width: 100%;
-        padding-bottom: 0;
+        font-size: 150%;
+    }
+
+    textarea {
+        width: 100%;
+    }
+
+    nav .navlink {
+        background-color: #eee;
+        font-size: 150%;
     }
 
     .navlink.icon-link {
-        width: auto;
+        display: none;
     }
 }
