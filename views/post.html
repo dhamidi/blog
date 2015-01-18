@@ -1,0 +1,40 @@
+{{define "title"}}{{.Title}}{{end}}
+{{define "main_content"}}<article class="post">
+  <h1>{{.Title}}</h1>
+  <span class="post-published-at">{{.Published}}</span>
+  {{.ContentHTML}}
+  <div class="post-comments">
+    <strong>Write a comment:</strong>
+    <form method="POST" action="/comments" id="comment-form" class="post-comment">
+      <div class="formdata">
+        <input type="hidden" name="post_id" value="{{.Id}}">
+      </div>
+      <p>
+        <label>Email: <input name="email"
+                             type="email"
+                             required="required"
+                             placeholder="john.doe@example.com" /></label>
+        <label>Name: <input name="author"
+                            type="text"
+                            required="required"
+                            placeholder="John Doe" /></label>
+      </p>
+      <p>
+        <textarea name="content"></textarea>
+      </p>
+      <p><button type="submit">Add comment</button></p>
+    </form>
+    {{range .Comments}}
+    <article class="post-comment">
+      <div class="center-line">
+        <span class="center-line-text">{{.Created}}</span>
+        <span class="center-line-text">{{.Author}}</span>
+      </div>
+      <div class="comment-content">
+        {{.ContentHTML}}
+      </div>
+    </article>
+    {{end}}
+  </div>
+</article>
+{{end}}

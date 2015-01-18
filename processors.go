@@ -23,7 +23,7 @@ func (proc *PostCommentProcessor) authenticateComment(evt *PostCommentedEvent) e
 	post := proc.posts.ById(evt.PostId)
 	link := &url.URL{
 		Scheme: "http",
-		Host:   "localhost:8000",
+		Host:   "localhost",
 		Path:   "/comments/" + evt.CommentId,
 	}
 

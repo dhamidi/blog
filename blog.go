@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
+
+	// expvar is imported for registering its HTTP handler.
+	_ "expvar"
 )
 
 type Application struct {
@@ -216,6 +221,8 @@ func main() {
 		switch req.Method {
 		case "GET":
 			id := req.URL.Path[len("/comments/"):]
+			postId := app.types.posts.IdForComment(id)
+
 			cmd := &PostAuthenticateCommentCommand{
 				CommentId: id,
 			}
@@ -223,7 +230,8 @@ func main() {
 			if _, err := app.HandleCommand(cmd); err != nil {
 				respondWithError(w, err)
 			} else {
-				w.Header().Set("Location", "/posts.html")
+				post := app.views.allPosts.ById(postId)
+				w.Header().Set("Location", post.Url.String())
 				w.WriteHeader(http.StatusSeeOther)
 			}
 		default:
@@ -244,22 +252,13 @@ func main() {
 			if _, err := app.HandleCommand(cmd); err != nil {
 				respondWithError(w, err)
 			} else {
-				w.Header().Set("Location", "/posts.html")
+				post := app.views.allPosts.ById(cmd.PostId)
+				w.Header().Set("Location", post.Url.String())
 				w.WriteHeader(http.StatusSeeOther)
 			}
 		default:
 			http.Error(w, "Only POST is allowed.", http.StatusMethodNotAllowed)
 
-		}
-	})
-
-	http.HandleFunc("/posts.json", func(w http.ResponseWriter, req *http.Request) {
-		switch req.Method {
-		case "GET":
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.Write(app.views.allPosts.RenderJSON())
-		default:
-			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
 		}
 	})
 
@@ -273,8 +272,28 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/posts/", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case "GET":
+			fields := strings.Split(req.URL.Path, "/")
+			postSlug := strings.Replace(fields[len(fields)-1], ".html", "", 1)
+			view := app.views.allPosts.BySlug(postSlug)
+			if view == nil {
+				respondWithError(w, ErrNotFound)
+			} else {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Write(view.RenderHTML())
+			}
+		default:
+			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
+		}
+	})
+
 	http.HandleFunc("/posts", func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
+		case "GET":
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(app.views.allPosts.RenderHTML())
 		case "POST":
 			cmd := &PublishPostCommand{
 				Title:   req.FormValue("title"),
@@ -287,8 +306,9 @@ func main() {
 				w.WriteHeader(http.StatusCreated)
 			}
 		default:
-			http.Error(w, "Only POST is allowed.", http.StatusMethodNotAllowed)
+			http.Error(w, "Only GET,POST is allowed.", http.StatusMethodNotAllowed)
 		}
 	})
-	log.Fatal(http.ListenAndServe(":8000", nil))
+
+	log.Fatal(http.ListenAndServe(os.Getenv("BLOG_HOST"), nil))
 }

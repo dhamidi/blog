@@ -1,0 +1,97 @@
+body {
+    padding: 0 1ex;
+    font-size: large;
+    font-family: Helvetica, sans-serif;
+    max-width: 80ex;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+h1 {
+    font-size: 150%;
+}
+
+h2 {
+    font-size: 120%;
+}
+
+h3 {
+    font-size: 120%;
+}
+
+h4 {
+    font-size: 100%;
+}
+
+code {
+    font-family: "Liberation Mono", "Courier", monospace;
+    font-size: 14pt;j
+}
+
+pre {
+    width: 100%;
+    overflow-x: auto;
+    font-size: 100%;
+}
+
+.post-meta {
+    color: #9b9b9b;
+    font-size: normal;
+}
+
+a:visited {
+    color: black;
+}
+
+.center-line {
+    position: relative;
+    border-bottom: #ccc 1px solid;
+    text-align: center;
+}
+
+.center-line-text {
+    position: relative;
+    top: 0.7em;
+    padding: 0 1ex;
+    background: white;
+    text-align: center;
+    display: inline-block;
+}
+
+.heading {
+    font-size: 120%;
+    font-weight: bold;
+}
+
+.center-line.heading {
+    margin-bottom: 40px;
+}
+
+.navlink {
+    font-size: 200%;
+    padding: 1ex;
+    display: inline-block;
+}
+
+.icon-xing-squared {
+    color: #026466;
+}
+
+.icon-twitter-squared {
+    color: #0084B4;
+}
+
+.icon-github-squared {
+    color: black;
+}
+
+@media(max-width: 600px) {
+    .navlink {
+        width: 100%;
+        padding-bottom: 0;
+    }
+
+    .navlink.icon-link {
+        width: auto;
+    }
+}

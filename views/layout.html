@@ -1,0 +1,21 @@
+<!doctype html>
+<html xml:lang="en" lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8">
+    <title>{{template "title" .}}</title>
+    <link rel="stylesheet" href="/css/iconfont.css">
+    <link rel="stylesheet" href="/css/main.css">
+  </head>
+  <body>
+    <nav>
+      <a class="navlink" href="/">Home</a>
+      <a class="navlink icon-link" href="https://xing.com/profile/Dario_Hamidi"><i class="icon-xing-squared"></i></a>
+      <a class="navlink icon-link" href="https://twitter.com/_dhamidi"><i class="icon-twitter-squared"></i></a>
+      <a class="navlink icon-link" href="https://github.com/dhamidi"><i class="icon-github-squared"></i></a>
+    </nav>
+
+    {{template "main_content" .}}
+  </body>
+</html>
+{{define "content"}}{{end}}
