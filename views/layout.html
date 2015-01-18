@@ -6,6 +6,7 @@
     <title>{{template "title" .}}</title>
     <link rel="stylesheet" href="/css/iconfont.css">
     <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/hljs.css">
   </head>
   <body>
     <nav>
@@ -16,6 +17,8 @@
     </nav>
 
     {{template "main_content" .}}
+    <script src="/js/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
   </body>
 </html>
 {{define "content"}}{{end}}
