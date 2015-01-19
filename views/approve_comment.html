@@ -1,0 +1,22 @@
+{{define "title"}}Approve your comment{{end}}
+{{define "main_content"}}
+<h1>You commented on</h1>
+<article class="post">
+  <h1 class="post-title">
+    <a href="{{.Post.Url}}" target="_blank"><u>{{.Post.Title}}</u></a>
+  </h1>
+  <div class="post-excerpt">
+    {{.Post.ExcerptHTML}}
+  </div>
+</article>
+<h1>The following comment:</h1>
+<div class="post-comment">
+  <div class="center-line">
+    <span class="center-line-text">{{.Comment.Author}}</span>
+  </div>
+  <div class="comment-content">{{.Comment.ContentHTML}}</div>
+</div>
+<form action="" method="POST">
+  <button type="submit">I approve</button>
+</form>
+{{end}}

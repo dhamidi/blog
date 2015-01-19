@@ -1,0 +1,14 @@
+{{define "title"}}Comment received{{end}}
+{{define "main_content"}}
+<h1>Your comment was received</h1>
+<p>Your comment on</p>
+<article class="post">
+  <h1 class="post-title">
+    <a href="{{.Post.Url}}" target="_blank"><u>{{.Post.Title}}</u></a>
+  </h1>
+</article>
+<p>was received.</p>
+<h2>Please authenticate yourself</h2>
+<p>An email was sent to {{.Email}}.  Open it and click the contained link in order to verify your identity.  Once you have done so, your comment will appear.</p>
+<p><a href="{{.Post.Url}}" class="navlink">Back to the post</a></p>
+{{end}}

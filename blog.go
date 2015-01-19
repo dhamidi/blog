@@ -218,13 +218,21 @@ func main() {
 	}
 
 	http.HandleFunc("/comments/", func(w http.ResponseWriter, req *http.Request) {
+		commentId := req.URL.Path[len("/comments/"):]
+		postId := app.types.posts.IdForComment(commentId)
+
 		switch req.Method {
 		case "GET":
-			id := req.URL.Path[len("/comments/"):]
-			postId := app.types.posts.IdForComment(id)
-
+			view, err := app.views.allPosts.approveCommentViewFor(postId, commentId)
+			if err != nil {
+				respondWithError(w, err)
+			} else {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Write(view.RenderHTML())
+			}
+		case "POST":
 			cmd := &PostAuthenticateCommentCommand{
-				CommentId: id,
+				CommentId: commentId,
 			}
 
 			if _, err := app.HandleCommand(cmd); err != nil {
@@ -253,8 +261,11 @@ func main() {
 				respondWithError(w, err)
 			} else {
 				post := app.views.allPosts.ById(cmd.PostId)
-				w.Header().Set("Location", post.Url.String())
-				w.WriteHeader(http.StatusSeeOther)
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Write(renderTemplate("views/comment_received.html", map[string]interface{}{
+					"Post":  post,
+					"Email": cmd.Email,
+				}))
 			}
 		default:
 			http.Error(w, "Only POST is allowed.", http.StatusMethodNotAllowed)

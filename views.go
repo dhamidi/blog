@@ -164,8 +164,34 @@ func (view *AllPostsView) authenticateComment(evt *PostCommentAuthenticatedEvent
 	post.authenticateComment(evt.CommentId)
 }
 
+func (view *AllPostsView) approveCommentViewFor(postId, commentId string) (*ApproveCommentView, error) {
+	post := view.allPosts[postId]
+	if post == nil {
+		return nil, ErrNotFound
+	}
+
+	comment := post.allComments[commentId]
+	if comment == nil {
+		return nil, ErrNotFound
+	}
+
+	return &ApproveCommentView{
+		Post:    post,
+		Comment: comment,
+	}, nil
+}
+
 func (view *AllPostsView) RenderHTML() []byte {
 	return renderTemplate("views/all_posts.html", view)
+}
+
+type ApproveCommentView struct {
+	Post    *AllPostsPost
+	Comment *AllPostsComment
+}
+
+func (view *ApproveCommentView) RenderHTML() []byte {
+	return renderTemplate("views/approve_comment.html", view)
 }
 
 var blackfridayExtensions = (blackfriday.EXTENSION_NO_INTRA_EMPHASIS |
