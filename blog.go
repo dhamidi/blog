@@ -76,6 +76,7 @@ func (app *Application) replayState() error {
 func (app *Application) load(typ Type, id string) (Aggregate, error) {
 	aggregate := typ.New()
 	events, err := app.Store.LoadStream(id)
+
 	if err != nil {
 		return nil, err
 	}
@@ -130,6 +131,7 @@ func (app *Application) rewordPost(cmd *RewordPostCommand) (*Events, error) {
 
 func (app *Application) commentOnPost(cmd *CommentOnPostCommand) (*Events, error) {
 	post, err := app.load(app.types.posts, cmd.PostId)
+
 	if err != nil {
 		return NoEvents, fmt.Errorf("Application.load: %s\n", err)
 	}

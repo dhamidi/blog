@@ -27,9 +27,11 @@ type eventOnFile struct {
 }
 
 func NewFileStore(dir string) (*FileStore, error) {
-	if _, err := os.Stat(dir); err != nil {
+	streamDir := filepath.Join(dir, "all")
+
+	if _, err := os.Stat(streamDir); err != nil {
 		if os.IsNotExist(err) {
-			err = os.MkdirAll(dir, 0755)
+			err = os.MkdirAll(streamDir, 0755)
 		}
 
 		if err != nil {
@@ -49,25 +51,36 @@ func (fs *FileStore) RegisterType(event Event) {
 }
 
 func (fs *FileStore) LoadAll() (*Events, error) {
-	return fs.load(fs.filenamesForStream("all"))
+	return fs.LoadStream("all")
 }
 
 func (fs *FileStore) LoadStream(id string) (*Events, error) {
-	return fs.load(fs.filenamesForStream(id))
+	filenames, err := fs.filenamesForStream(id)
+	streamDir := filepath.Join(fs.dir, id)
+
+	if _, err := os.Stat(streamDir); os.IsNotExist(err) {
+		return NoEvents, ErrNotFound
+	}
+
+	if err != nil {
+		return NoEvents, err
+	}
+
+	return fs.load(filenames)
 }
 
-func (fs *FileStore) filenamesForStream(id string) []string {
+func (fs *FileStore) filenamesForStream(id string) ([]string, error) {
 	dirname := filepath.Join(fs.dir, id)
 	dir, err := os.Open(dirname)
 	if err != nil {
 		log.Printf("FileStore: %s\n", err)
-		return []string{}
+		return []string{}, err
 	}
 
 	fnames := []string{}
 	if names, err := dir.Readdirnames(0); err != nil {
 		log.Printf("FileStore: %s\n", err)
-		return []string{}
+		return []string{}, err
 	} else {
 		for _, name := range names {
 			fnames = append(fnames, filepath.Join(dirname, name))
@@ -76,7 +89,7 @@ func (fs *FileStore) filenamesForStream(id string) []string {
 
 	sort.Strings(fnames)
 
-	return fnames
+	return fnames, nil
 }
 
 func (fs *FileStore) load(filenames []string) (*Events, error) {
