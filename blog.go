@@ -117,6 +117,9 @@ func (app *Application) publishPost(cmd *PublishPostCommand) (*Events, error) {
 func (app *Application) rewordPost(cmd *RewordPostCommand) (*Events, error) {
 	post, err := app.load(app.types.posts, cmd.PostId)
 
+	if err == ErrNotFound {
+		return NoEvents, err
+	}
 	if err != nil {
 		return NoEvents, fmt.Errorf("Application.load: %s\n", err)
 	}
@@ -132,6 +135,9 @@ func (app *Application) rewordPost(cmd *RewordPostCommand) (*Events, error) {
 func (app *Application) commentOnPost(cmd *CommentOnPostCommand) (*Events, error) {
 	post, err := app.load(app.types.posts, cmd.PostId)
 
+	if err == ErrNotFound {
+		return NoEvents, err
+	}
 	if err != nil {
 		return NoEvents, fmt.Errorf("Application.load: %s\n", err)
 	}
