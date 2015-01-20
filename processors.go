@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/url"
+	"os"
 )
 
 type PostCommentProcessor struct {
@@ -20,10 +21,17 @@ func (proc *PostCommentProcessor) HandleEvent(event Event) error {
 }
 
 func (proc *PostCommentProcessor) authenticateComment(evt *PostCommentedEvent) error {
+	scheme := "https"
+	host := os.Getenv("BLOG_PROXY")
+	if host == "" {
+		scheme = "http"
+		host = os.Getenv("BLOG_HOST")
+	}
+
 	post := proc.posts.ById(evt.PostId)
 	link := &url.URL{
-		Scheme: "http",
-		Host:   "localhost",
+		Scheme: scheme,
+		Host:   host,
 		Path:   "/comments/" + evt.CommentId,
 	}
 
