@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	// expvar is imported for registering its HTTP handler.
+
 	_ "expvar"
 )
 
@@ -210,7 +211,11 @@ func respondWithError(w http.ResponseWriter, err error) {
 	case ErrNotFound:
 		http.Error(w, err.Error(), http.StatusNotFound)
 	default:
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if strings.HasPrefix(err.Error(), "ValidationError") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -308,11 +313,45 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/posts", func(w http.ResponseWriter, req *http.Request) {
+	http.HandleFunc("/admin/posts/new", func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
 		case "GET":
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write(app.views.allPosts.RenderHTML())
+			w.Write(renderTemplate("views/publish_post.html", nil))
+		default:
+			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/admin/posts/preview", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case "POST":
+			cmd := &PublishPostCommand{
+				Title:   req.FormValue("title"),
+				Content: req.FormValue("content"),
+			}
+			post := app.types.posts.New()
+			view := &AllPostsView{}
+			events, err := post.HandleCommand(cmd)
+			if err != nil {
+				respondWithError(w, err)
+				return
+			}
+			if err := view.HandleEvent(events.Items()[0]); err != nil {
+				respondWithError(w, err)
+				return
+			}
+			viewPost := view.Collection[0]
+			viewPost.Preview = true
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(viewPost.RenderHTML())
+		default:
+			http.Error(w, "Only POST is allowed.", http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/admin/posts", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
 		case "POST":
 			cmd := &PublishPostCommand{
 				Title:   req.FormValue("title"),
@@ -321,9 +360,18 @@ func main() {
 			if _, err := app.HandleCommand(cmd); err != nil {
 				respondWithError(w, err)
 			} else {
-				w.Header().Set("Location", fmt.Sprintf("/posts/%s", cmd.postId))
-				w.WriteHeader(http.StatusCreated)
+				http.Redirect(w, req, "/posts.html", http.StatusSeeOther)
 			}
+		default:
+			http.Error(w, "Only POST is allowed.", http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/posts", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case "GET":
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(app.views.allPosts.RenderHTML())
 		default:
 			http.Error(w, "Only GET,POST is allowed.", http.StatusMethodNotAllowed)
 		}

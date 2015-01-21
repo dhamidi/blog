@@ -2,6 +2,11 @@
 
 ## Required
 
+- Create a new command for "Preview post".
+
+  The way previews are handled feels like a dirty hack.  Usually `POST`
+  requests map to a command.
+
 - Define proper types.
 
   Currently errors returned by different parts of the system are
@@ -17,7 +22,7 @@
   semantics.  For example, fetching the stream of all events should
   never return a "Not found" error, but just an empty list of events.
 
-- Serve assets directly from the app.
+- Make app run stand-alone.
 
   Currently the application expects to be run behind a reverse proxy
   which handles authentication/authorization and static files.  This
@@ -33,11 +38,6 @@
 # Features
 
 ## Required
-
-- Provide a frontend for creating posts.
-
-  This involved a "preview" functionality to see the processed post
-  contents rendered as they would if the post were published already.
 
 - Provide a frontend for rewording posts.
 

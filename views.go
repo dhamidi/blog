@@ -36,6 +36,8 @@ type AllPostsPost struct {
 	Url  *url.URL
 	Slug string
 
+	Preview bool
+
 	Comments []*AllPostsComment
 
 	allComments map[string]*AllPostsComment
@@ -75,7 +77,11 @@ func (post *AllPostsPost) createExcerpt() {
 }
 
 func (post *AllPostsPost) RenderHTML() []byte {
-	return renderTemplate("views/post.html", post)
+	if post.Preview {
+		return renderTemplate("views/post_preview.html", post)
+	} else {
+		return renderTemplate("views/post.html", post)
+	}
 }
 
 type AllPostsView struct {
@@ -124,6 +130,7 @@ func (view *AllPostsView) addPost(evt *PostPublishedEvent) {
 		Published:   evt.PublishedAt.Format("02 Jan 2006"),
 		Slug:        slug,
 		Url:         &url.URL{Path: "/posts/" + slug + ".html"},
+		Preview:     false,
 
 		allComments: map[string]*AllPostsComment{},
 		publishedAt: evt.PublishedAt,

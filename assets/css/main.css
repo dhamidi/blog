@@ -102,6 +102,11 @@ a:visited {
     font-size: 200%;
 }
 
+input.post-title {
+    width: 40em;
+    text-align: left;
+}
+
 textarea {
     width: 40em;
 }

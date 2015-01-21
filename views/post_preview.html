@@ -1,0 +1,11 @@
+{{define "title"}}{{.Title}}{{end}}
+{{define "main_content"}}<p><em>This is a preview of a post.  Press your browser's back button to go back to editing your post.</em></p>
+<article class="post">
+  <h1 class="post-title">{{.Title}}</h1>
+  <p>
+    Published on: <span class="post-published-at">{{.Published}}</span>
+    <span class="navlink sub">{{.Comments | len}} comment(s)</a>
+  </p>
+  {{.ContentHTML}}
+</article>
+{{end}}
