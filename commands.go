@@ -27,6 +27,12 @@ func (cmd *PublishPostCommand) Sanitize() {
 	}
 }
 
+type PreviewPostCommand struct {
+	*PublishPostCommand
+
+	view *AllPostsPost
+}
+
 type CommentOnPostCommand struct {
 	PostId  string
 	Content string

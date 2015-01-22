@@ -2,11 +2,6 @@
 
 ## Required
 
-- Create a new command for "Preview post".
-
-  The way previews are handled feels like a dirty hack.  Usually `POST`
-  requests map to a command.
-
 - Define proper types.
 
   Currently errors returned by different parts of the system are

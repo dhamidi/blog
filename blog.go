@@ -93,6 +93,8 @@ func (app *Application) HandleCommand(command Command) (*Events, error) {
 	switch cmd := command.(type) {
 	case *PublishPostCommand:
 		return app.publishPost(cmd)
+	case *PreviewPostCommand:
+		return app.previewPost(cmd)
 	case *RewordPostCommand:
 		return app.rewordPost(cmd)
 	case *CommentOnPostCommand:
@@ -168,6 +170,25 @@ func (app *Application) authenticateComment(cmd *PostAuthenticateCommentCommand)
 	} else {
 		return events, app.process(events)
 	}
+}
+
+func (app *Application) previewPost(cmd *PreviewPostCommand) (*Events, error) {
+	post := app.types.posts.New()
+	view := &AllPostsView{}
+	events, err := post.HandleCommand(cmd.PublishPostCommand)
+	if err != nil {
+		return NoEvents, err
+	}
+	if err := view.HandleEvent(events.Items()[0]); err != nil {
+		return NoEvents, err
+	}
+
+	viewPost := view.Collection[0]
+	viewPost.Preview = true
+
+	cmd.view = viewPost
+
+	return events, nil
 }
 
 func (app *Application) HandleEvent(event Event) error {
@@ -326,25 +347,18 @@ func main() {
 	http.HandleFunc("/admin/posts/preview", func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
 		case "POST":
-			cmd := &PublishPostCommand{
-				Title:   req.FormValue("title"),
-				Content: req.FormValue("content"),
+			cmd := &PreviewPostCommand{
+				PublishPostCommand: &PublishPostCommand{
+					Title:   req.FormValue("title"),
+					Content: req.FormValue("content"),
+				},
 			}
-			post := app.types.posts.New()
-			view := &AllPostsView{}
-			events, err := post.HandleCommand(cmd)
-			if err != nil {
+			if _, err := app.HandleCommand(cmd); err != nil {
 				respondWithError(w, err)
-				return
+			} else {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Write(cmd.view.RenderHTML())
 			}
-			if err := view.HandleEvent(events.Items()[0]); err != nil {
-				respondWithError(w, err)
-				return
-			}
-			viewPost := view.Collection[0]
-			viewPost.Preview = true
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write(viewPost.RenderHTML())
 		default:
 			http.Error(w, "Only POST is allowed.", http.StatusMethodNotAllowed)
 		}
