@@ -9,6 +9,7 @@ import (
 type PostCommentProcessor struct {
 	mailer Mailer
 	posts  *AllPostsView
+	useTls bool
 }
 
 func (proc *PostCommentProcessor) HandleEvent(event Event) error {
@@ -24,7 +25,9 @@ func (proc *PostCommentProcessor) authenticateComment(evt *PostCommentedEvent) e
 	scheme := "https"
 	host := os.Getenv("BLOG_PROXY")
 	if host == "" {
-		scheme = "http"
+		if !proc.useTls {
+			scheme = "http"
+		}
 		host = os.Getenv("BLOG_HOST")
 	}
 

@@ -30,6 +30,12 @@ type Application struct {
 	views struct {
 		allPosts *AllPostsView
 	}
+
+	tls struct {
+		enabled bool
+		cert    string
+		key     string
+	}
 }
 
 func (app *Application) Init() error {
@@ -47,10 +53,14 @@ func (app *Application) Init() error {
 		app.mailer = mailer
 	}
 
+	app.tls.key, app.tls.cert = os.Getenv("BLOG_TLS_KEY"), os.Getenv("BLOG_TLS_CERT")
+	app.tls.enabled = app.tls.key != "" && app.tls.cert != ""
+
 	app.processors = []EventHandler{
 		&PostCommentProcessor{
 			mailer: app.mailer,
 			posts:  app.views.allPosts,
+			useTls: app.tls.enabled,
 		},
 	}
 
@@ -240,7 +250,31 @@ func respondWithError(w http.ResponseWriter, err error) {
 	}
 }
 
+func authenticated(w http.ResponseWriter, req *http.Request) bool {
+	user, pass, ok := req.BasicAuth()
+	if !ok || !validUser(user, pass) {
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"Administration\"")
+		http.Error(w, "Login required.", http.StatusUnauthorized)
+		return false
+	}
+
+	return true
+}
+
+func validUser(user, pass string) bool {
+	expectedUser := os.Getenv("BLOG_ADMIN_USER")
+	expectedPass := os.Getenv("BLOG_ADMIN_PASS")
+
+	if expectedUser == "" || expectedPass == "" {
+		return false
+	}
+
+	return user == expectedUser && pass == expectedPass
+}
+
 func main() {
+	assetServer := http.FileServer(http.Dir("assets"))
+
 	store, err := NewFileStore("_events")
 	if err != nil {
 		log.Fatal(err)
@@ -335,6 +369,9 @@ func main() {
 	})
 
 	http.HandleFunc("/admin/posts/new", func(w http.ResponseWriter, req *http.Request) {
+		if !authenticated(w, req) {
+			return
+		}
 		switch req.Method {
 		case "GET":
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -345,6 +382,10 @@ func main() {
 	})
 
 	http.HandleFunc("/admin/posts/preview", func(w http.ResponseWriter, req *http.Request) {
+		if !authenticated(w, req) {
+			return
+		}
+
 		switch req.Method {
 		case "POST":
 			cmd := &PreviewPostCommand{
@@ -365,6 +406,10 @@ func main() {
 	})
 
 	http.HandleFunc("/admin/posts", func(w http.ResponseWriter, req *http.Request) {
+		if !authenticated(w, req) {
+			return
+		}
+
 		switch req.Method {
 		case "POST":
 			cmd := &PublishPostCommand{
@@ -391,5 +436,24 @@ func main() {
 		}
 	})
 
-	log.Fatal(http.ListenAndServe(os.Getenv("BLOG_HOST"), nil))
+	http.Handle("/index.html", http.RedirectHandler("/posts.html", http.StatusSeeOther))
+	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		if app.tls.enabled && req.URL.Scheme == "http" {
+			req.URL.Scheme = "https"
+			http.Redirect(w, req, "/", http.StatusSwitchingProtocols)
+			return
+		}
+
+		if req.URL.Path == "/" {
+			http.Redirect(w, req, "/posts.html", http.StatusSeeOther)
+		} else {
+			assetServer.ServeHTTP(w, req)
+		}
+	})
+
+	if app.tls.enabled {
+		log.Fatal(http.ListenAndServeTLS(os.Getenv("BLOG_HOST"), app.tls.cert, app.tls.key, nil))
+	} else {
+		log.Fatal(http.ListenAndServe(os.Getenv("BLOG_HOST"), nil))
+	}
 }

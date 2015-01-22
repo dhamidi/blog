@@ -17,13 +17,6 @@
   semantics.  For example, fetching the stream of all events should
   never return a "Not found" error, but just an empty list of events.
 
-- Make app run stand-alone.
-
-  Currently the application expects to be run behind a reverse proxy
-  which handles authentication/authorization and static files.  This
-  requires extra setup, which makes the process of setting up a
-  development environment more involved.
-
 - Add tests.
 
   Since this time it seems like the code is going to stick around for
