@@ -24,6 +24,14 @@ func (verr ValidationError) Add(key string, err error) ValidationError {
 	return verr
 }
 
+func (verr ValidationError) Get(key string) error {
+	if errs, ok := verr[key]; ok {
+		return errs[0]
+	}
+
+	return nil
+}
+
 func (verr ValidationError) Len() int {
 	return len(verr)
 }

@@ -164,6 +164,9 @@ func (post *Post) comment(cmd *CommentOnPostCommand) (*Events, error) {
 	if cmd.Email == "" {
 		verr.Add("Email", ErrEmpty)
 	}
+	if cmd.PostId != post.id {
+		verr.Add("Post", ErrNotFound)
+	}
 
 	return ListOfEvents(&PostCommentedEvent{
 		PostId:      post.id,
