@@ -102,13 +102,22 @@ a:visited {
     font-size: 200%;
 }
 
-input.post-title {
+input, textarea {
+    font-size: 16px;
+    line-height: 19px;
     width: 40em;
-    text-align: left;
 }
 
-textarea {
-    width: 40em;
+label {
+    display: block;
+    width: 100%;
+    font-weight: bold;
+    font-size: small;
+    margin-bottom: 5px;
+}
+
+input.post-title {
+    text-align: left;
 }
 
 .icon-xing-squared {
@@ -121,6 +130,22 @@ textarea {
 
 .icon-github-squared {
     color: black;
+}
+
+button {
+    font-size: large;
+    padding: 10px;
+
+    background-color: #2F5EFF;
+    border: none;
+    border-bottom: 5px solid #2147CC;
+    margin-bottom: 5px;
+
+    color: #ffffff;
+}
+
+button:hover {
+    background-color: #97AEFE;
 }
 
 @media(max-width: 600px) {

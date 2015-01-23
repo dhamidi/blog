@@ -17,14 +17,18 @@
       <p>
         <em>After sending the comment through this form, you will receive a confirmation email with a link.  Your comment will appear after you have clicked that link.</em></p>
       <p>
-        <label>Email: <input name="email"
-                             type="email"
-                             required="required"
-                             placeholder="john.doe@example.com" /></label>
-        <label>Name: <input name="author"
-                            type="text"
-                            required="required"
-                            placeholder="John Doe" /></label>
+        <label for="comment-email">Email</label>
+        <input id="comment-email" name="email"
+               type="email"
+               required="required"
+               placeholder="john.doe@example.com" />
+      </p>
+      <p>
+        <label for="comment-author">Name</label>
+        <input id="comment-author" name="author"
+               type="text"
+               required="required"
+               placeholder="John Doe" />
       </p>
       <p>
         <textarea name="content" rows="10"></textarea>
