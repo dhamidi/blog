@@ -23,6 +23,7 @@ type Event interface {
 	Tag() string
 	AggregateId() string
 }
+
 type EventList struct {
 	items []Event
 }

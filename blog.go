@@ -7,13 +7,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/dhamidi/blog/eventstore"
+
 	// expvar is imported for registering its HTTP handler.
 
 	_ "expvar"
 )
 
 type Application struct {
-	Store *FileStore
+	Store eventstore.Store
 
 	replaying bool
 
@@ -79,7 +81,9 @@ func (app *Application) replayState() error {
 	}
 
 	app.replaying = true
-	err = app.process(events)
+	for _, event := range events {
+		app.HandleEvent(event)
+	}
 	app.replaying = false
 	return err
 }
@@ -92,7 +96,9 @@ func (app *Application) load(typ Type, id string) (Aggregate, error) {
 		return nil, err
 	}
 
-	events.ApplyTo(aggregate)
+	for _, event := range events {
+		aggregate.HandleEvent(event)
+	}
 
 	return aggregate, nil
 }
@@ -202,9 +208,55 @@ func (app *Application) previewPost(cmd *PreviewPostCommand) (*Events, error) {
 }
 
 func (app *Application) HandleEvent(event Event) error {
+	log.Printf("Application.HandleEvent: %#v\n", event)
+
+	if err := app.storeEvent(event); err != nil {
+		log.Printf("Application.HandleEvent: %s\n", err)
+		return err
+	}
+
+	if err := app.notifyObservers(event); err != nil {
+		return err
+	}
+
+	if err := app.notifyProcessors(event); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (app *Application) storeEvent(event Event) error {
+	if !app.replaying {
+		if err := app.Store.Store(event); err != nil {
+			log.Printf("Application.storeEvent: %s\n", err)
+			return err
+		} else {
+			log.Printf("Application.storeEvent: event stored\n")
+		}
+	}
+
+	return nil
+}
+
+func (app *Application) notifyObservers(event Event) error {
 	for _, observer := range app.observers {
 		if err := observer.HandleEvent(event); err != nil {
-			log.Printf("Application.Apply: %s\nWhile processing:\n%#v\n", err, event)
+			log.Printf("Application.notifyObservers: %s\nWhile processing:\n%#v\n", err, event)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (app *Application) notifyProcessors(event Event) error {
+	if !app.replaying {
+		for _, proc := range app.processors {
+			if err := proc.HandleEvent(event); err != nil {
+				log.Printf("Application.notifyProcessors: %s\n", err)
+				return err
+			}
 		}
 	}
 
@@ -212,28 +264,7 @@ func (app *Application) HandleEvent(event Event) error {
 }
 
 func (app *Application) process(events *Events) error {
-	for _, event := range events.Items() {
-		log.Printf("Application.process: %#v\n", event)
-
-		if !app.replaying {
-			if err := app.Store.Store(event); err != nil {
-				log.Printf("Application.process: %s\n", err)
-			} else {
-				log.Printf("Application.process: event stored\n")
-			}
-		}
-
-		app.HandleEvent(event)
-
-		if !app.replaying {
-			for _, proc := range app.processors {
-				if err := proc.HandleEvent(event); err != nil {
-					log.Printf("Application.process: %s\n", err)
-				}
-			}
-		}
-	}
-
+	events.ApplyTo(app)
 	return nil
 }
 
@@ -275,7 +306,7 @@ func validUser(user, pass string) bool {
 func main() {
 	assetServer := http.FileServer(http.Dir("assets"))
 
-	store, err := NewFileStore("_events")
+	store, err := eventstore.NewOnDisk("_events")
 	if err != nil {
 		log.Fatal(err)
 	}

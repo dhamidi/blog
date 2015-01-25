@@ -1,11 +1,10 @@
-package main
+package eventstore
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,7 +13,7 @@ import (
 	"time"
 )
 
-type FileStore struct {
+type fileStore struct {
 	dir     string
 	typeMap map[string]reflect.Type
 	lock    *sync.RWMutex
@@ -26,7 +25,7 @@ type eventOnFile struct {
 	Event    json.RawMessage
 }
 
-func NewFileStore(dir string) (*FileStore, error) {
+func NewOnDisk(dir string) (Store, error) {
 	streamDir := filepath.Join(dir, "all")
 
 	if _, err := os.Stat(streamDir); err != nil {
@@ -35,51 +34,63 @@ func NewFileStore(dir string) (*FileStore, error) {
 		}
 
 		if err != nil {
-			return nil, err
+			return nil, &StorageError{
+				Op:          "OnDisk",
+				Stream:      "all",
+				Err:         ErrInternal,
+				InternalErr: err,
+			}
 		}
 	}
 
-	return &FileStore{
+	return &fileStore{
 		dir:     dir,
 		typeMap: map[string]reflect.Type{},
 		lock:    &sync.RWMutex{},
 	}, nil
 }
 
-func (fs *FileStore) RegisterType(event Event) {
+func (fs *fileStore) RegisterType(event Event) {
 	fs.typeMap[event.Tag()] = reflect.TypeOf(event)
 }
 
-func (fs *FileStore) LoadAll() (*Events, error) {
+func (fs *fileStore) LoadAll() ([]Event, error) {
 	return fs.LoadStream("all")
 }
 
-func (fs *FileStore) LoadStream(id string) (*Events, error) {
+func (fs *fileStore) LoadStream(id string) ([]Event, error) {
 	filenames, err := fs.filenamesForStream(id)
 	streamDir := filepath.Join(fs.dir, id)
 
 	if _, err := os.Stat(streamDir); os.IsNotExist(err) {
-		return NoEvents, ErrNotFound
+		return NoEvents, &StorageError{
+			Op:     "LoadStream",
+			Stream: id,
+			Err:    ErrNotFound,
+		}
 	}
 
 	if err != nil {
-		return NoEvents, err
+		return NoEvents, &StorageError{
+			Op:          "LoadStream",
+			Stream:      id,
+			Err:         ErrInternal,
+			InternalErr: err,
+		}
 	}
 
 	return fs.load(filenames)
 }
 
-func (fs *FileStore) filenamesForStream(id string) ([]string, error) {
+func (fs *fileStore) filenamesForStream(id string) ([]string, error) {
 	dirname := filepath.Join(fs.dir, id)
 	dir, err := os.Open(dirname)
 	if err != nil {
-		log.Printf("FileStore: %s\n", err)
 		return []string{}, err
 	}
 
 	fnames := []string{}
 	if names, err := dir.Readdirnames(0); err != nil {
-		log.Printf("FileStore: %s\n", err)
 		return []string{}, err
 	} else {
 		for _, name := range names {
@@ -92,20 +103,20 @@ func (fs *FileStore) filenamesForStream(id string) ([]string, error) {
 	return fnames, nil
 }
 
-func (fs *FileStore) load(filenames []string) (*Events, error) {
+func (fs *fileStore) load(filenames []string) ([]Event, error) {
 	events := []Event{}
 	for _, fname := range filenames {
 		if event, err := fs.loadEvent(fname); err != nil {
-			return NoEvents, fmt.Errorf("FileStore: %s\n", err)
+			return NoEvents, err
 		} else {
 			events = append(events, event)
 		}
 	}
 
-	return &Events{items: events}, nil
+	return events, nil
 }
 
-func (fs *FileStore) loadEvent(fname string) (Event, error) {
+func (fs *fileStore) loadEvent(fname string) (Event, error) {
 	msg := eventOnFile{}
 	file, err := os.Open(fname)
 	if err != nil {
@@ -127,16 +138,16 @@ func (fs *FileStore) loadEvent(fname string) (Event, error) {
 	}
 }
 
-func (fs *FileStore) eventForType(typename string) Event {
+func (fs *fileStore) eventForType(typename string) Event {
 	typ, ok := fs.typeMap[typename]
 	if !ok {
-		panic(fmt.Errorf("FileStore: type %q not registered.", typename))
+		panic(fmt.Errorf("type %q not registered.", typename))
 	}
 
 	return reflect.New(typ.Elem()).Interface().(Event)
 }
 
-func (fs *FileStore) Store(event Event) error {
+func (fs *fileStore) Store(event Event) error {
 	now := time.Now().UTC()
 
 	eventData, err := json.Marshal(event)
@@ -162,23 +173,22 @@ func (fs *FileStore) Store(event Event) error {
 	return fs.storeForAggregate(now, event.AggregateId(), data)
 }
 
-func (fs *FileStore) storeForAll(now time.Time, data []byte) error {
+func (fs *fileStore) storeForAll(now time.Time, data []byte) error {
 	return fs.storeForAggregate(now, "all", data)
 }
 
-func (fs *FileStore) storeForAggregate(now time.Time, id string, data []byte) error {
+func (fs *fileStore) storeForAggregate(now time.Time, id string, data []byte) error {
 	nowStr := fmt.Sprintf("%d", now.UnixNano())
 	dirname := filepath.Join(fs.dir, id)
 	fname := filepath.Join(dirname, nowStr)
 
 	if _, err := os.Stat(dirname); os.IsNotExist(err) {
-		log.Printf("FileStore.storeForAggregate: MkdirAll(%q,0755)", dirname)
 		os.MkdirAll(dirname, 0755)
 	}
 
 	out, err := os.OpenFile(fname, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("FileStore: %s\n", fname)
+		return err
 	}
 	defer out.Close()
 
