@@ -1,0 +1,23 @@
+{{define "title"}}Reword post{{end}}
+{{define "main_content"}}
+<h1>Reword your post</h1>
+<article class="post">
+  <h1 class="post-title">{{.Title}}</h1>
+
+  <form method="POST" action="/admin/posts/{{.Id}}" id="post-form">
+    <div class="formdata">
+      <input type="hidden" name="title" value="{{.Title}}">
+    </div>
+    <div>
+      <textarea class="post-content" name="content" rows="10">{{.Content}}</textarea>
+    </div>
+    <p>
+      <label for="reword-reason">Reason for your change:</label>
+      <input id="reword-reason" name="reason" type="text" />
+    <p>
+      <button class="button" type="submit" formaction="/admin/posts/preview" form="post-form">Preview post</button>
+      <button class="button" type="submit">Reword post</button>
+    </p>
+  </form>
+</article>
+{{end}}

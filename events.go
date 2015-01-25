@@ -4,6 +4,7 @@ import "time"
 
 type PostRewordedEvent struct {
 	PostId          string
+	Reason          string
 	RewordedContent string
 	RewordedAt      time.Time
 }

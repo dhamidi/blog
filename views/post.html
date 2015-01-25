@@ -15,7 +15,7 @@
         <input type="hidden" name="post_id" value="{{.Id}}">
       </div>
       <p>
-        <em>After sending the comment through this form, you will receive a confirmation email with a link.  Your comment will appear after you have clicked that link.</em></p>
+        <em class="hint">After sending the comment through this form, you will receive a confirmation email with a link.  Your comment will appear after you have clicked that link.</em></p>
       <p>
         <label for="comment-email">Email</label>
         <input id="comment-email" name="email"
@@ -33,7 +33,7 @@
       <p>
         <textarea name="content" rows="10"></textarea>
       </p>
-      <p><button type="submit">Add comment</button></p>
+      <p><button class="button" type="submit">Add comment</button></p>
     </form>
     {{range .Comments}}
     <article class="post-comment">

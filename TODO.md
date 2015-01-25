@@ -10,10 +10,6 @@
 
 # Features
 
-## Required
-
-- Provide a frontend for rewording posts.
-
 ## Nice-to-have
 
 - Generate/maintain a sitemap.xml

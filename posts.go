@@ -132,6 +132,7 @@ func (post *Post) reword(cmd *RewordPostCommand) (*Events, error) {
 
 	return ListOfEvents(&PostRewordedEvent{
 		PostId:          cmd.PostId,
+		Reason:          cmd.Reason,
 		RewordedContent: cmd.NewContent,
 		RewordedAt:      time.Now(),
 	}), nil

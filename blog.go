@@ -189,7 +189,8 @@ func (app *Application) authenticateComment(cmd *PostAuthenticateCommentCommand)
 }
 
 func (app *Application) previewPost(cmd *PreviewPostCommand) (*Events, error) {
-	post := app.types.posts.New()
+	posts := &Posts{}
+	post := posts.New()
 	view := &AllPostsView{}
 	events, err := post.HandleCommand(cmd.PublishPostCommand)
 	if err != nil {
@@ -436,6 +437,49 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/admin/posts/", func(w http.ResponseWriter, req *http.Request) {
+		if !authenticated(w, req) {
+			return
+		}
+
+		action := ""
+		fields := strings.Split(req.URL.Path[len("/admin/posts/"):], "/")
+		postId := fields[0]
+		if len(fields) > 1 {
+			action = fields[1]
+		}
+		post := app.views.allPosts.ById(postId)
+
+		if post == nil {
+			respondWithError(w, ErrNotFound)
+		}
+
+		switch req.Method {
+		case "GET":
+			switch action {
+			case "reword":
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Write(renderTemplate("views/reword_post.html", post))
+			default:
+				respondWithError(w, ErrNotFound)
+			}
+		case "POST":
+			cmd := &RewordPostCommand{
+				PostId:     postId,
+				Reason:     req.FormValue("reason"),
+				NewContent: req.FormValue("content"),
+			}
+
+			if _, err := app.HandleCommand(cmd); err != nil {
+				respondWithError(w, err)
+			} else {
+				http.Redirect(w, req, "/admin", http.StatusSeeOther)
+			}
+		default:
+			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
+		}
+	})
+
 	http.HandleFunc("/admin/posts", func(w http.ResponseWriter, req *http.Request) {
 		if !authenticated(w, req) {
 			return
@@ -457,6 +501,20 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/admin/", func(w http.ResponseWriter, req *http.Request) {
+		if !authenticated(w, req) {
+			return
+		}
+
+		switch req.Method {
+		case "GET":
+			w.Header().Set("Content-Type", "text/html; charsetf=utf-8")
+			w.Write(renderTemplate("views/admin.html", app.views.allPosts))
+		default:
+			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
+		}
+	})
+
 	http.HandleFunc("/posts", func(w http.ResponseWriter, req *http.Request) {
 		switch req.Method {
 		case "GET":
@@ -469,6 +527,7 @@ func main() {
 
 	http.Handle("/index.html", http.RedirectHandler("/posts.html", http.StatusSeeOther))
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+
 		if app.tls.enabled && req.URL.Scheme == "http" {
 			req.URL.Scheme = "https"
 			http.Redirect(w, req, "/", http.StatusSwitchingProtocols)

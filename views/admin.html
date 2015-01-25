@@ -1,0 +1,30 @@
+{{define "title"}}Administration{{end}}
+{{define "main_content"}}
+<h1>Blog administration</h1>
+<a href="/admin/posts/new" class="button">Write a new post</a>
+<h2>Published posts</h2>
+<div class="posts admin">
+{{range .Collection}}
+<div class="post">
+  <div class="post-action">
+    <a href="/admin/posts/{{.Id}}/reword" class="button">Reword</a>
+  </div>
+  <div class="post-detail">
+    <a href="{{.Url}}" target="_blank" class="post-title">{{.Title}}</a>
+    <em>({{.Published}})</em>
+    {{.ExcerptHTML}}
+    {{if .Changes}}
+    <div class="changes">
+      {{range .Changes}}
+      <p>
+        <em>{{.ChangedAt}}</em><br>
+        {{.Description}}
+      </p>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+</div>
+{{end}}

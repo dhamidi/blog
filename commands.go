@@ -5,6 +5,7 @@ import "strings"
 type RewordPostCommand struct {
 	PostId     string
 	NewContent string
+	Reason     string
 }
 
 func (cmd *RewordPostCommand) Sanitize() {

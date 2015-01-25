@@ -12,6 +12,18 @@ import (
 	"github.com/russross/blackfriday"
 )
 
+type ChangeItem struct {
+	At          time.Time
+	ChangedAt   string
+	Description string
+}
+
+type RecentChanges []*ChangeItem
+
+func (c RecentChanges) Len() int           { return len(c) }
+func (c RecentChanges) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c RecentChanges) Less(i, j int) bool { return c[i].At.After(c[j].At) }
+
 type AllPostsComment struct {
 	Id          string
 	Author      string
@@ -39,6 +51,8 @@ type AllPostsPost struct {
 	Preview bool
 
 	Comments []*AllPostsComment
+
+	Changes []*ChangeItem
 
 	allComments map[string]*AllPostsComment
 	publishedAt time.Time
@@ -76,6 +90,27 @@ func (post *AllPostsPost) createExcerpt() {
 	}
 }
 
+func (post *AllPostsPost) setContent(content string) *AllPostsPost {
+	post.Content = content
+	post.ContentHTML = textToHTML(content, false)
+
+	post.createExcerpt()
+
+	return post
+}
+
+func (post *AllPostsPost) addToHistory(occurred time.Time, description string) *AllPostsPost {
+	post.Changes = append(post.Changes, &ChangeItem{
+		At:          occurred,
+		ChangedAt:   occurred.Format("02 Jan 2006, 15:04:05 MST"),
+		Description: description,
+	})
+
+	sort.Sort(RecentChanges(post.Changes))
+
+	return post
+}
+
 func (post *AllPostsPost) RenderHTML() []byte {
 	if post.Preview {
 		return renderTemplate("views/post_preview.html", post)
@@ -103,6 +138,8 @@ func (view *AllPostsView) HandleEvent(event Event) error {
 	switch evt := event.(type) {
 	case *PostPublishedEvent:
 		view.addPost(evt)
+	case *PostRewordedEvent:
+		view.rewordPost(evt)
 	case *PostCommentedEvent:
 		view.addCommentToPost(evt)
 	case *PostCommentAuthenticatedEvent:
@@ -141,6 +178,19 @@ func (view *AllPostsView) addPost(evt *PostPublishedEvent) {
 	view.allPostsBySlug[slug] = post
 	view.Collection = append(view.Collection, post)
 	sort.Sort(view)
+}
+
+func (view *AllPostsView) rewordPost(event *PostRewordedEvent) {
+	post := view.ById(event.PostId)
+	if post == nil {
+		return
+	}
+
+	post.setContent(event.RewordedContent)
+
+	if event.Reason != "" {
+		post.addToHistory(event.RewordedAt, event.Reason)
+	}
 }
 
 func (view *AllPostsView) ById(id string) *AllPostsPost {

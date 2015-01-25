@@ -46,8 +46,11 @@ a {
     color: #2F5EFF;
 }
 
-a:visited {
-    color: #333;
+.hint {
+    display: block;
+    border-left: 1ex solid #2F5EFF;
+    background-color: #f9f9f9;
+    padding-left: 1ex;
 }
 
 .center-line {
@@ -132,20 +135,39 @@ input.post-title {
     color: black;
 }
 
-button {
+.button {
     font-size: large;
-    padding: 10px;
+    font-family: sans-serif;
 
     background-color: #2F5EFF;
     border: none;
     border-bottom: 5px solid #2147CC;
+
+    padding: 10px;
+
     margin-bottom: 5px;
 
+    text-decoration: none;
+    text-align: center;
+
     color: #ffffff;
+
+    display: inline-block;
 }
 
-button:hover {
+.button:hover {
     background-color: #97AEFE;
+}
+
+.posts.admin .post-detail {
+    display: inline-block;
+    width: 77%;
+}
+
+.posts.admin .post-action {
+    width: 20%;
+    display: inline-block;
+    vertical-align: top;
 }
 
 @media(max-width: 600px) {
