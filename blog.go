@@ -275,7 +275,9 @@ func respondWithError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	default:
 		if strings.HasPrefix(err.Error(), "ValidationError") {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(renderTemplate("views/validation_error.html", err))
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

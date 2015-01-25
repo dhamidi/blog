@@ -1,0 +1,10 @@
+{{define "title"}}Validation Errors{{end}}
+{{define "main_content"}}
+<h1>Your submission was invalid</h1>
+<dl class="result hint error">
+  {{range $field, $errors := . }}
+  <dt>{{$field}}</dt>
+  <dd><ul>{{range $errors}}<li>{{.}}</li>{{end}}</ul></dd>
+  {{end}}
+</dl>
+{{end}}

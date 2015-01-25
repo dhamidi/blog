@@ -20,11 +20,6 @@
 
 ## Required
 
-- Proper error handling in the frontend
-
-  When publishing/rewording posts, any errors that occur are displayed
-  in their raw form as plain text.  This is not very user friendly.
-
 - Do not allow images in user comments
 
   From a legal perspective it is too risky to have images appear

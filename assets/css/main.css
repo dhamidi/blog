@@ -53,6 +53,11 @@ a {
     padding-left: 1ex;
 }
 
+.error {
+    border-left: 1ex solid #FF5E58;
+}
+
+
 .center-line {
     position: relative;
     border-bottom: #ccc 1px solid;
