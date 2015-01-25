@@ -4,9 +4,21 @@
   <p>
     Published on: <span class="post-published-at">{{.Published}}</span>
     <a class="navlink sub" href="#comments">{{.Comments | len}} comment(s)</a>
+    <a class="navlink sub" href="#comment-form">Write a comment</a>
   </p>
   {{.ContentHTML}}
   <div class="post-comments" id="comments">
+    {{range .Comments}}
+    <article class="post-comment">
+      <div class="center-line">
+        <span class="center-line-text">{{.Created}}</span>
+        <span class="center-line-text">{{.Author}}</span>
+      </div>
+      <div class="comment-content">
+        {{.ContentHTML}}
+      </div>
+    </article>
+    {{end}}
     <div class="center-line">
       <strong class="center-line-text">Write a comment:</strong>
     </div>
@@ -35,17 +47,6 @@
       </p>
       <p><button class="button" type="submit">Add comment</button></p>
     </form>
-    {{range .Comments}}
-    <article class="post-comment">
-      <div class="center-line">
-        <span class="center-line-text">{{.Created}}</span>
-        <span class="center-line-text">{{.Author}}</span>
-      </div>
-      <div class="comment-content">
-        {{.ContentHTML}}
-      </div>
-    </article>
-    {{end}}
   </div>
 </article>
 {{end}}
