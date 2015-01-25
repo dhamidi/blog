@@ -544,7 +544,11 @@ func main() {
 	})
 
 	if app.tls.enabled {
-		log.Fatal(http.ListenAndServeTLS(os.Getenv("BLOG_HOST"), app.tls.cert, app.tls.key, nil))
+		go http.ListenAndServe(
+			os.Getenv("BLOG_HOST"),
+			http.RedirectHandler(fmt.Sprintf("https://%s/", os.Getenv("BLOG_TLS_HOST")), http.StatusMovedPermanently),
+		)
+		log.Fatal(http.ListenAndServeTLS(os.Getenv("BLOG_TLS_HOST"), app.tls.cert, app.tls.key, nil))
 	} else {
 		log.Fatal(http.ListenAndServe(os.Getenv("BLOG_HOST"), nil))
 	}

@@ -27,8 +27,10 @@ func (proc *PostCommentProcessor) authenticateComment(evt *PostCommentedEvent) e
 	if host == "" {
 		if !proc.useTls {
 			scheme = "http"
+			host = os.Getenv("BLOG_HOST")
+		} else {
+			host = os.Getenv("BLOG_TLS_HOST")
 		}
-		host = os.Getenv("BLOG_HOST")
 	}
 
 	post := proc.posts.ById(evt.PostId)

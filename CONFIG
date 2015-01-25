@@ -2,7 +2,7 @@
 set -a
 # Enable this setting instead of BLOG_HOST if running behind a reverse
 # proxy.
-# BLOG_PROXY=localhost:8000
+#BLOG_PROXY=localhost:8000
 
 # Hostname and port on which to listen.  Disable if running behind a
 # proxy.  See BLOG_PROXY for that case.
@@ -15,10 +15,13 @@ BLOG_ADMIN_PASS=admin
 
 # Enable these if you want to use TLS.
 
+# Hostname and port on which to listen when using HTTPS
+#BLOG_TLS_HOST=localhost:8080
+
 # Path to the TLS private key file
-# BLOG_TLS_KEY=tls.key
+#BLOG_TLS_KEY=tls.key
 
 # Path to the TLS certificate file
-# BLOG_TLS_CERT=tls.crt
+#BLOG_TLS_CERT=tls.crt
 
 exec "$@"
