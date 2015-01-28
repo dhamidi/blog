@@ -18,13 +18,6 @@
 
 # Features
 
-## Required
-
-- Do not allow images in user comments
-
-  From a legal perspective it is too risky to have images appear
-  directly in the comments.
-
 ## Nice-to-have
 
 - Generate/maintain a sitemap.xml

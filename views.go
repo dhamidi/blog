@@ -260,18 +260,36 @@ var blackfridayExtensions = (blackfriday.EXTENSION_NO_INTRA_EMPHASIS |
 	blackfriday.EXTENSION_HEADER_IDS |
 	blackfriday.EXTENSION_AUTO_HEADER_IDS)
 
-func textToHTML(text string, userGenerated bool) template.HTML {
-	data := blackfriday.Markdown([]byte(text),
-		blackfriday.HtmlRenderer(
-			blackfriday.HTML_USE_XHTML|
-				blackfriday.HTML_USE_SMARTYPANTS|
-				blackfriday.HTML_SMARTYPANTS_FRACTIONS|
-				blackfriday.HTML_SMARTYPANTS_LATEX_DASHES,
-			"",
-			"",
-		),
-		blackfridayExtensions,
+type userContentRenderer struct {
+	blackfriday.Renderer
+}
+
+func (renderer *userContentRenderer) Image(out *bytes.Buffer, link []byte, title []byte, alt []byte) {
+	renderer.Link(out, link, title, alt)
+}
+
+var (
+	blackfridayAuthor = blackfriday.HtmlRenderer(
+		blackfriday.HTML_USE_XHTML|
+			blackfriday.HTML_USE_SMARTYPANTS|
+			blackfriday.HTML_SMARTYPANTS_FRACTIONS|
+			blackfriday.HTML_SMARTYPANTS_LATEX_DASHES,
+		"",
+		"",
 	)
+	blackfridayUgc = &userContentRenderer{
+		Renderer: blackfridayAuthor,
+	}
+)
+
+func textToHTML(text string, userGenerated bool) template.HTML {
+	renderer := blackfridayAuthor
+	if userGenerated {
+		renderer = blackfridayUgc
+	}
+
+	data := blackfriday.Markdown([]byte(text), renderer, blackfridayExtensions)
+
 	if userGenerated {
 		data = bluemonday.UGCPolicy().SanitizeBytes(data)
 	}
