@@ -2,8 +2,13 @@ package main
 
 import (
 	"bytes"
+	"encoding/xml"
+	"fmt"
 	"html/template"
+	"io"
+	"log"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -249,6 +254,72 @@ type ApproveCommentView struct {
 
 func (view *ApproveCommentView) RenderHTML() []byte {
 	return renderTemplate("views/approve_comment.html", view)
+}
+
+type SitemapURL struct {
+	XMLName    xml.Name `xml:"url"`
+	Loc        string   `xml:"loc"`
+	Lastmod    string   `xml:"lastmod,omitempty"`
+	Changefreq string   `xml:"changefreq,omitempty"`
+	Priority   string   `xml:"priority,omitempty"`
+}
+
+type Sitemap struct {
+	allPosts *AllPostsView
+	baseUrl  *url.URL
+	Urls     []*SitemapURL
+}
+
+func NewSitemap(allPosts *AllPostsView) *Sitemap {
+	host := os.Getenv("BLOG_TLS_HOST")
+	if host == "" {
+		host = "http://" + os.Getenv("BLOG_HOST")
+	} else {
+		host = "https://" + host
+	}
+
+	if host == "" {
+		log.Fatal("BLOG_TLS_HOST or BLOG_HOST need to be set.")
+	}
+
+	baseUrl, err := url.Parse(host)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Sitemap: host=%q, baseUrl=%#v\n", host, baseUrl)
+	return &Sitemap{
+		allPosts: allPosts,
+		baseUrl:  baseUrl,
+		Urls:     []*SitemapURL{},
+	}
+}
+
+func (sitemap *Sitemap) HandleEvent(event Event) error {
+	switch evt := event.(type) {
+	case *PostPublishedEvent:
+		post := sitemap.allPosts.ById(evt.PostId)
+		url := &SitemapURL{
+			Loc: sitemap.baseUrl.ResolveReference(post.Url).String(),
+		}
+		sitemap.Urls = append(sitemap.Urls, url)
+	}
+
+	return nil
+}
+
+func (sitemap *Sitemap) RenderXML(w io.Writer) error {
+	fmt.Fprintf(w, "%s\n%s\n",
+		xml.Header,
+		`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+	)
+	enc := xml.NewEncoder(w)
+	for _, url := range sitemap.Urls {
+		if err := enc.Encode(url); err != nil {
+			log.Printf("sitemap: %s\n", err)
+		}
+	}
+	fmt.Fprintf(w, "</urlset>\n")
+	return nil
 }
 
 var blackfridayExtensions = (blackfriday.EXTENSION_NO_INTRA_EMPHASIS |

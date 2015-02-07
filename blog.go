@@ -31,6 +31,7 @@ type Application struct {
 
 	views struct {
 		allPosts *AllPostsView
+		sitemap  *Sitemap
 	}
 
 	tls struct {
@@ -48,6 +49,7 @@ func (app *Application) Init() error {
 
 	app.types.posts = &Posts{}
 	app.views.allPosts = &AllPostsView{}
+	app.views.sitemap = NewSitemap(app.views.allPosts)
 
 	if mailer, err := NewSystemMailer("/usr/sbin/sendmail"); err != nil {
 		log.Fatal(err)
@@ -69,6 +71,7 @@ func (app *Application) Init() error {
 	app.observers = []EventHandler{
 		app.types.posts,
 		app.views.allPosts,
+		app.views.sitemap,
 	}
 
 	return app.replayState()
@@ -524,6 +527,16 @@ func main() {
 			w.Write(app.views.allPosts.RenderHTML())
 		default:
 			http.Error(w, "Only GET,POST is allowed.", http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/sitemap.xml", func(w http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case "GET":
+			w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+			app.views.sitemap.RenderXML(w)
+		default:
+			http.Error(w, "Only GET is allowed.", http.StatusMethodNotAllowed)
 		}
 	})
 

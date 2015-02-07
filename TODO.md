@@ -18,11 +18,4 @@
 
 # Features
 
-## Nice-to-have
-
-- Generate/maintain a sitemap.xml
-
-  This feature is mainly here to explore how easy it is to have maintain
-  multiple different views.  I suspect it is pretty easy.
-
 [1]: https://github.com/boltdb/bolt
