@@ -7,16 +7,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"sync"
 	"time"
 )
 
 type fileStore struct {
-	dir     string
-	typeMap map[string]reflect.Type
-	lock    *sync.RWMutex
+	TypeMap
+
+	dir  string
+	lock *sync.RWMutex
 }
 
 type eventOnFile struct {
@@ -44,14 +44,10 @@ func NewOnDisk(dir string) (Store, error) {
 	}
 
 	return &fileStore{
+		TypeMap: TypeMap{},
 		dir:     dir,
-		typeMap: map[string]reflect.Type{},
 		lock:    &sync.RWMutex{},
 	}, nil
-}
-
-func (fs *fileStore) RegisterType(event Event) {
-	fs.typeMap[event.Tag()] = reflect.TypeOf(event)
 }
 
 func (fs *fileStore) LoadAll() ([]Event, error) {
@@ -129,22 +125,13 @@ func (fs *fileStore) loadEvent(fname string) (Event, error) {
 		return nil, err
 	}
 
-	event := fs.eventForType(msg.Type)
+	event := fs.EventForType(msg.Type)
 	err = json.Unmarshal([]byte(msg.Event), event)
 	if err != nil {
 		return nil, err
 	} else {
 		return event, nil
 	}
-}
-
-func (fs *fileStore) eventForType(typename string) Event {
-	typ, ok := fs.typeMap[typename]
-	if !ok {
-		panic(fmt.Errorf("type %q not registered.", typename))
-	}
-
-	return reflect.New(typ.Elem()).Interface().(Event)
 }
 
 func (fs *fileStore) Store(event Event) error {
